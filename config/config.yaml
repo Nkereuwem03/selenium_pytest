@@ -1,0 +1,31 @@
+browser: chrome
+headless: false
+
+download_directory: tests/downloads
+upload_directory: tests/uploads
+file_type: application/octet-stream
+webdriver_path: ./drivers/chromedriver.exe
+webdriver_path_firefox: ./drivers/geckodriver.exe
+webdriver_path_edge: ./drivers/msedgedriver.exe
+
+base_url: https://www.moneycontrol.com/fixed-income/calculator/state-bank-of-india/fixed-deposit-calculator-SBI-BSB001.html
+
+timeouts:
+  implicit: 5
+  explicit: 10
+
+excel_data_file: data/excel_data.xlsx
+excel_data_sheet: Sheet3
+
+database:
+  host: ${DATABASE_HOST}
+  user: root
+  password: password
+  database_name: selenium_test_db
+
+enable_screenshots: true
+# enable_logs: true
+# enable_video: true
+# enable_network: true
+# enable_database: true
+# enable_console: true
