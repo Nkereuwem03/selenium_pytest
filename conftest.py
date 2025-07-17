@@ -61,8 +61,7 @@ def pytest_sessionstart(session):
     browser_version = "unknown"
 
     try:
-        temp_browser_manager = BrowserManager()
-        # temp_browser_manager = BrowserManager(browser_name=browser_name, headless=headless)
+        temp_browser_manager = BrowserManager(browser_name=browser_name)
         driver = temp_browser_manager.start_browser()
         browser_version = driver.capabilities.get("browserVersion", "unknown")
         logger.info(
@@ -83,7 +82,7 @@ def pytest_sessionstart(session):
         f.write(f"OS={os.name}\n")
         f.write(f"Environment={environment}\n")
         f.write(
-            f"Python.Version={session.config.hook.pytest_report_header(config=session.config, startdir=session.startdir)[0] if hasattr(session.config.hook, 'pytest_report_header') else 'unknown'}\n"
+            f"Python.Version={session.config.hook.pytest_report_header(config=session.config, start_path=session.startpath)[0] if hasattr(session.config.hook, 'pytest_report_header') else 'unknown'}\n"
         )
         f.write(f"Test.Start.Time={datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
 
@@ -145,7 +144,7 @@ def setup_teardown(request):
     driver = None
 
     try:
-        browser_manager = BrowserManager()
+        browser_manager = BrowserManager(browser_name=browser_name)
         driver = browser_manager.start_browser()
         logger.info(f"Browser {browser_name} started successfully")
 
@@ -158,8 +157,6 @@ def setup_teardown(request):
 
     except Exception as e:
         logger.error(f"Failed to start browser: {e}")
-        if browser_manager:
-            browser_manager.quit_browser()
         raise
     finally:
         if browser_manager:
@@ -259,7 +256,6 @@ def _attach_browser_logs(driver: WebDriver, phase: str, test_name: str = ""):
         test_name: Name of the test
     """
     try:
-        # Get browser logs (Chrome specific)
         if hasattr(driver, "get_log"):
             logs = driver.get_log("browser")
             if logs:
