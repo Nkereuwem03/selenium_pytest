@@ -4,10 +4,10 @@ import yaml
 import os
 import tempfile
 from selenium import webdriver
-from selenium.webdriver.chrome.service import Service as ChromeService
-from selenium.webdriver.firefox.service import Service as FirefoxService
 from selenium.webdriver.chrome.options import Options as ChromeOptions
 from selenium.webdriver.firefox.options import Options as FirefoxOptions
+from selenium.webdriver.chrome.service import Service as ChromeService
+from selenium.webdriver.firefox.service import Service as FirefoxService
 from webdriver_manager.chrome import ChromeDriverManager
 from webdriver_manager.firefox import GeckoDriverManager
 from utils.logger import logger
@@ -70,7 +70,7 @@ class BrowserManager:
                 options.add_argument("--disable-software-rasterizer")
                 options.add_argument("--remote-debugging-port=9222")
 
-                # 🛡️ Prevent Chrome profile conflict
+                # ✅ Prevent Chrome profile conflict in CI
                 temp_user_data = tempfile.mkdtemp()
                 options.add_argument(f"--user-data-dir={temp_user_data}")
 
