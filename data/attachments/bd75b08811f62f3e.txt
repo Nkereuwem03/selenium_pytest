@@ -1,0 +1,179 @@
+2025-07-17 11:59:44 | ERROR | Failed to start browser (attempt 1): Message: session not created: probably user data directory is already in use, please specify a unique value for --user-data-dir argument, or don't use --user-data-dir
+Stacktrace:
+#0 0x5560512e17da <unknown>
+#1 0x556050d862e0 <unknown>
+#2 0x556050dc07bd <unknown>
+#3 0x556050dbbad7 <unknown>
+#4 0x556050e0be9e <unknown>
+#5 0x556050e0b466 <unknown>
+#6 0x556050dfd683 <unknown>
+#7 0x556050dc9b5b <unknown>
+#8 0x556050dcaf31 <unknown>
+#9 0x5560512a672b <unknown>
+#10 0x5560512aa534 <unknown>
+#11 0x55605128d229 <unknown>
+#12 0x5560512ab0d8 <unknown>
+#13 0x55605127161f <unknown>
+#14 0x5560512cedd8 <unknown>
+#15 0x5560512cefb6 <unknown>
+#16 0x5560512e0af6 <unknown>
+#17 0x7fd3db89caa4 <unknown>
+#18 0x7fd3db929c3c <unknown>
+
+2025-07-17 11:59:46 | ERROR | Failed to start browser (attempt 2): Message: session not created: probably user data directory is already in use, please specify a unique value for --user-data-dir argument, or don't use --user-data-dir
+Stacktrace:
+#0 0x55a93365e7da <unknown>
+#1 0x55a9331032e0 <unknown>
+#2 0x55a93313d7bd <unknown>
+#3 0x55a933138ad7 <unknown>
+#4 0x55a933188e9e <unknown>
+#5 0x55a933188466 <unknown>
+#6 0x55a93317a683 <unknown>
+#7 0x55a933146b5b <unknown>
+#8 0x55a933147f31 <unknown>
+#9 0x55a93362372b <unknown>
+#10 0x55a933627534 <unknown>
+#11 0x55a93360a229 <unknown>
+#12 0x55a9336280d8 <unknown>
+#13 0x55a9335ee61f <unknown>
+#14 0x55a93364bdd8 <unknown>
+#15 0x55a93364bfb6 <unknown>
+#16 0x55a93365daf6 <unknown>
+#17 0x7f163fa9caa4 <unknown>
+#18 0x7f163fb29c3c <unknown>
+
+2025-07-17 11:59:48 | ERROR | Failed to start browser (attempt 3): Message: session not created: probably user data directory is already in use, please specify a unique value for --user-data-dir argument, or don't use --user-data-dir
+Stacktrace:
+#0 0x55d4abebf7da <unknown>
+#1 0x55d4ab9642e0 <unknown>
+#2 0x55d4ab99e7bd <unknown>
+#3 0x55d4ab999ad7 <unknown>
+#4 0x55d4ab9e9e9e <unknown>
+#5 0x55d4ab9e9466 <unknown>
+#6 0x55d4ab9db683 <unknown>
+#7 0x55d4ab9a7b5b <unknown>
+#8 0x55d4ab9a8f31 <unknown>
+#9 0x55d4abe8472b <unknown>
+#10 0x55d4abe88534 <unknown>
+#11 0x55d4abe6b229 <unknown>
+#12 0x55d4abe890d8 <unknown>
+#13 0x55d4abe4f61f <unknown>
+#14 0x55d4abeacdd8 <unknown>
+#15 0x55d4abeacfb6 <unknown>
+#16 0x55d4abebeaf6 <unknown>
+#17 0x7fda9229caa4 <unknown>
+#18 0x7fda92329c3c <unknown>
+
+2025-07-17 11:59:48 | ERROR | Failed to start browser after 3 attempts
+2025-07-17 11:59:48 | ERROR | Failed to get browser capabilities: Could not start chrome browser: Message: session not created: probably user data directory is already in use, please specify a unique value for --user-data-dir argument, or don't use --user-data-dir
+Stacktrace:
+#0 0x55d4abebf7da <unknown>
+#1 0x55d4ab9642e0 <unknown>
+#2 0x55d4ab99e7bd <unknown>
+#3 0x55d4ab999ad7 <unknown>
+#4 0x55d4ab9e9e9e <unknown>
+#5 0x55d4ab9e9466 <unknown>
+#6 0x55d4ab9db683 <unknown>
+#7 0x55d4ab9a7b5b <unknown>
+#8 0x55d4ab9a8f31 <unknown>
+#9 0x55d4abe8472b <unknown>
+#10 0x55d4abe88534 <unknown>
+#11 0x55d4abe6b229 <unknown>
+#12 0x55d4abe890d8 <unknown>
+#13 0x55d4abe4f61f <unknown>
+#14 0x55d4abeacdd8 <unknown>
+#15 0x55d4abeacfb6 <unknown>
+#16 0x55d4abebeaf6 <unknown>
+#17 0x7fda9229caa4 <unknown>
+#18 0x7fda92329c3c <unknown>
+
+2025-07-17 11:59:49 | ERROR | Failed to start browser (attempt 1): Message: session not created: probably user data directory is already in use, please specify a unique value for --user-data-dir argument, or don't use --user-data-dir
+Stacktrace:
+#0 0x560d1582e7da <unknown>
+#1 0x560d152d32e0 <unknown>
+#2 0x560d1530d7bd <unknown>
+#3 0x560d15308ad7 <unknown>
+#4 0x560d15358e9e <unknown>
+#5 0x560d15358466 <unknown>
+#6 0x560d1534a683 <unknown>
+#7 0x560d15316b5b <unknown>
+#8 0x560d15317f31 <unknown>
+#9 0x560d157f372b <unknown>
+#10 0x560d157f7534 <unknown>
+#11 0x560d157da229 <unknown>
+#12 0x560d157f80d8 <unknown>
+#13 0x560d157be61f <unknown>
+#14 0x560d1581bdd8 <unknown>
+#15 0x560d1581bfb6 <unknown>
+#16 0x560d1582daf6 <unknown>
+#17 0x7f1b7629caa4 <unknown>
+#18 0x7f1b76329c3c <unknown>
+
+2025-07-17 11:59:51 | ERROR | Failed to start browser (attempt 2): Message: session not created: probably user data directory is already in use, please specify a unique value for --user-data-dir argument, or don't use --user-data-dir
+Stacktrace:
+#0 0x55f5b13dc7da <unknown>
+#1 0x55f5b0e812e0 <unknown>
+#2 0x55f5b0ebb7bd <unknown>
+#3 0x55f5b0eb6ad7 <unknown>
+#4 0x55f5b0f06e9e <unknown>
+#5 0x55f5b0f06466 <unknown>
+#6 0x55f5b0ef8683 <unknown>
+#7 0x55f5b0ec4b5b <unknown>
+#8 0x55f5b0ec5f31 <unknown>
+#9 0x55f5b13a172b <unknown>
+#10 0x55f5b13a5534 <unknown>
+#11 0x55f5b1388229 <unknown>
+#12 0x55f5b13a60d8 <unknown>
+#13 0x55f5b136c61f <unknown>
+#14 0x55f5b13c9dd8 <unknown>
+#15 0x55f5b13c9fb6 <unknown>
+#16 0x55f5b13dbaf6 <unknown>
+#17 0x7fa7a5e9caa4 <unknown>
+#18 0x7fa7a5f29c3c <unknown>
+
+2025-07-17 11:59:54 | ERROR | Failed to start browser (attempt 3): Message: session not created: probably user data directory is already in use, please specify a unique value for --user-data-dir argument, or don't use --user-data-dir
+Stacktrace:
+#0 0x5630486b37da <unknown>
+#1 0x5630481582e0 <unknown>
+#2 0x5630481927bd <unknown>
+#3 0x56304818dad7 <unknown>
+#4 0x5630481dde9e <unknown>
+#5 0x5630481dd466 <unknown>
+#6 0x5630481cf683 <unknown>
+#7 0x56304819bb5b <unknown>
+#8 0x56304819cf31 <unknown>
+#9 0x56304867872b <unknown>
+#10 0x56304867c534 <unknown>
+#11 0x56304865f229 <unknown>
+#12 0x56304867d0d8 <unknown>
+#13 0x56304864361f <unknown>
+#14 0x5630486a0dd8 <unknown>
+#15 0x5630486a0fb6 <unknown>
+#16 0x5630486b2af6 <unknown>
+#17 0x7fbadae9caa4 <unknown>
+#18 0x7fbadaf29c3c <unknown>
+
+2025-07-17 11:59:54 | ERROR | Failed to start browser after 3 attempts
+2025-07-17 11:59:54 | ERROR | Failed to start browser: Could not start chrome browser: Message: session not created: probably user data directory is already in use, please specify a unique value for --user-data-dir argument, or don't use --user-data-dir
+Stacktrace:
+#0 0x5630486b37da <unknown>
+#1 0x5630481582e0 <unknown>
+#2 0x5630481927bd <unknown>
+#3 0x56304818dad7 <unknown>
+#4 0x5630481dde9e <unknown>
+#5 0x5630481dd466 <unknown>
+#6 0x5630481cf683 <unknown>
+#7 0x56304819bb5b <unknown>
+#8 0x56304819cf31 <unknown>
+#9 0x56304867872b <unknown>
+#10 0x56304867c534 <unknown>
+#11 0x56304865f229 <unknown>
+#12 0x56304867d0d8 <unknown>
+#13 0x56304864361f <unknown>
+#14 0x5630486a0dd8 <unknown>
+#15 0x5630486a0fb6 <unknown>
+#16 0x5630486b2af6 <unknown>
+#17 0x7fbadae9caa4 <unknown>
+#18 0x7fbadaf29c3c <unknown>
+
+2025-07-17 11:59:54 | ERROR | Test test_fixed_deposit_calculator failed in setup phase
