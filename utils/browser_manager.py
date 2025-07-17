@@ -1,13 +1,16 @@
 """Module for managing Selenium WebDriver instances based on configuration."""
 
 import yaml
+import os
+import tempfile
 from selenium import webdriver
+from selenium.webdriver.chrome.service import Service as ChromeService
+from selenium.webdriver.firefox.service import Service as FirefoxService
 from selenium.webdriver.chrome.options import Options as ChromeOptions
 from selenium.webdriver.firefox.options import Options as FirefoxOptions
-import os
+from webdriver_manager.chrome import ChromeDriverManager
+from webdriver_manager.firefox import GeckoDriverManager
 from utils.logger import logger
-import tempfile
-                
 
 with open("config/config.yaml", "r", encoding="utf-8") as f:
     config = yaml.safe_load(f)
@@ -36,9 +39,7 @@ class BrowserManager:
         self.download_dir = os.path.abspath(
             config.get("download_directory", "./downloads")
         )
-        if not os.path.exists(self.download_dir):
-            os.makedirs(self.download_dir)
-        # os.makedirs(self.download_dir, exist_ok=True)
+        os.makedirs(self.download_dir, exist_ok=True)
 
     def start_browser(self):
         """Initializes the WebDriver based on the specified browser."""
@@ -50,6 +51,7 @@ class BrowserManager:
                 "directory_upgrade": True,
             }
             options.add_experimental_option("prefs", prefs)
+
             if self.headless:
                 options.add_argument("--headless=new")
                 options.add_argument("--no-sandbox")
@@ -60,45 +62,47 @@ class BrowserManager:
                 options.add_argument("--disable-plugins")
                 options.add_argument("--enable-logging")
                 options.add_argument("--log-level=0")
-                options.add_argument("--enable-features=NetworkService,NetworkServiceInProcess")
-                options.add_argument("--disable-software-rasterizer")
+                options.add_argument(
+                    "--enable-features=NetworkService,NetworkServiceInProcess"
+                )
                 options.add_argument("--disable-background-networking")
                 options.add_argument("--disable-default-apps")
+                options.add_argument("--disable-software-rasterizer")
                 options.add_argument("--remote-debugging-port=9222")
 
-                # ✅ Temporary unique user profile
+                # 🛡️ Prevent Chrome profile conflict
                 temp_user_data = tempfile.mkdtemp()
                 options.add_argument(f"--user-data-dir={temp_user_data}")
 
-                        
-                
             options.add_argument("--disable-popup-blocking")
             options.add_argument("--disable-infobars")
             options.add_argument("--disable-notifications")
             options.add_experimental_option("excludeSwitches", ["enable-automation"])
             options.add_experimental_option("useAutomationExtension", False)
             options.add_argument("--disable-blink-features=AutomationControlled")
-            self.driver = webdriver.Chrome(options=options)
+
+            self.driver = webdriver.Chrome(
+                service=ChromeService(ChromeDriverManager().install()), options=options
+            )
             self.driver.maximize_window()
 
         elif self.browser_name == "firefox":
             options = FirefoxOptions()
             file_type = config.get("file_type", "application/octet-stream")
             options.set_preference("browser.download.folderList", 2)
-            # 0 = desktop, 1 = default location, 2 = desired location
-            # https://www.sitepoint.com/mime-types-complete-list/
             options.set_preference("browser.download.dir", self.download_dir)
             options.set_preference("browser.download.manager.showWhenStarting", False)
             options.set_preference("browser.helperApps.neverAsk.saveToDisk", file_type)
             options.set_preference("dom.webnotifications.enabled", False)
             options.set_preference("dom.push.enabled", False)
+
             if self.headless:
                 options.add_argument("-headless")
-            self.driver = webdriver.Firefox(options=options)
-            self.driver.maximize_window()
 
-        # else:
-        #     raise ValueError(f"Unsupported browser: {self.browser_name}")
+            self.driver = webdriver.Firefox(
+                service=FirefoxService(GeckoDriverManager().install()), options=options
+            )
+            self.driver.maximize_window()
 
         return self.driver
 
