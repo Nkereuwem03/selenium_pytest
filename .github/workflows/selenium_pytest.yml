@@ -10,15 +10,11 @@ jobs:
   test:
     runs-on: ubuntu-latest
 
-    strategy:
-      matrix:
-        browser: [chrome, firefox]
-
     services:
       mysql:
         image: mysql:latest
         env:
-          MYSQL_ROOT_PASSWORD: ${{ secrets.MYSQL_ROOT_PASSWORD }}
+          MYSQL_ROOT_PASSWORD: ${{ secrets.MYSQL_ROOT_PASSWORD || 'root' }}
           MYSQL_DATABASE: test_data
         ports:
           - 3306:3306
@@ -32,9 +28,8 @@ jobs:
       DATABASE_HOST: 127.0.0.1
       DATABASE_PORT: 3306
       DATABASE_USER: root
-      MYSQL_PASSWORD: ${{ secrets.MYSQL_ROOT_PASSWORD }}
+      DATABASE_PASSWORD: ${{ secrets.MYSQL_ROOT_PASSWORD || 'root' }}
       DATABASE_NAME: test_data
-      BROWSER: ${{ matrix.browser }}
 
     steps:
       - name: Checkout code
@@ -53,17 +48,17 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-pip-
 
-      - name: Install Python dependencies
+      - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
           pip install allure-pytest
 
-      - name: Wait for MySQL to be ready
+      - name: Wait for MySQL
         run: |
           for i in {1..30}; do
-            if mysqladmin ping -h"127.0.0.1" -uroot -p"${MYSQL_PASSWORD:-root}" --silent; then
-              echo "MySQL is ready"
+            if mysqladmin ping -h"127.0.0.1" -uroot -p${{ secrets.MYSQL_ROOT_PASSWORD || 'root' }} --silent; then
+              echo "MySQL is ready!"
               break
             fi
             echo "Waiting for MySQL... ($i/30)"
@@ -73,15 +68,14 @@ jobs:
       - name: Initialize database
         run: |
           if [ ! -f init.sql ]; then 
-            echo "init.sql not found. Creating dummy table..."
+            echo "init.sql not found! Creating a dummy one for demo."
             echo "CREATE TABLE IF NOT EXISTS test_table (id INT PRIMARY KEY, name VARCHAR(255));" > init.sql
           fi
-          mysql -h 127.0.0.1 -uroot -p"${MYSQL_PASSWORD:-root}" test_data < init.sql
+          mysql -h 127.0.0.1 -uroot -p${{ secrets.MYSQL_ROOT_PASSWORD || 'root' }} test_data < init.sql
 
       - name: Run Pytest with Allure
         run: |
-          echo "Browser: $BROWSER"
-          pytest --maxfail=1 -vv -s --tb=short --disable-warnings --alluredir=allure-results
+          pytest --maxfail=1 -vv -s --tb=short --alluredir=allure-results
         continue-on-error: false
 
       - name: Install Allure CLI
@@ -97,22 +91,18 @@ jobs:
         run: |
           allure generate allure-results -o allure-report --clean
 
-      - name: Deploy Allure Report to GitHub Pages
-        if: always() && github.event_name == 'push' && github.ref == 'refs/heads/main' && matrix.browser == 'chrome'
+      - name: Deploy to GitHub Pages
+        if: always() && github.event_name == 'push' && github.ref == 'refs/heads/main'
         uses: peaceiris/actions-gh-pages@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./allure-report
 
-      - name: Ensure logs folder exists
-        if: always()
-        run: mkdir -p logs
-
-      - name: Upload Allure Report
+      - name: Upload Allure Report as Artifact
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: allure-report-${{ matrix.browser }}-${{ github.run_number }}
+          name: allure-report-${{ github.run_number }}
           path: allure-report
           retention-days: 7
 
@@ -120,6 +110,6 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: test-logs-${{ matrix.browser }}-${{ github.run_number }}
+          name: test-logs-${{ github.run_number }}
           path: logs
           retention-days: 3
