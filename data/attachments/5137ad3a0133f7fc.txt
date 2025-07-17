@@ -1,3 +1,0 @@
-2025-07-17 12:08:26 | ERROR | Failed to get browser capabilities: BrowserManager.__init__() got an unexpected keyword argument 'headless'
-2025-07-17 12:08:27 | ERROR | Failed to start browser: BrowserManager.__init__() takes from 1 to 2 positional arguments but 3 were given
-2025-07-17 12:08:27 | ERROR | Test test_fixed_deposit_calculator failed in setup phase
