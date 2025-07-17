@@ -168,11 +168,11 @@ class BrowserManager:
             )
 
             # Create temporary user data directory for headless mode
-            self.temp_user_data_dir = tempfile.mkdtemp(prefix="chrome_user_data_")
-            _temp_directories.append(self.temp_user_data_dir)
-            options.add_argument(f"--user-data-dir={self.temp_user_data_dir}")
-            options.add_argument("--no-first-run")
-            options.add_argument("--no-default-browser-check")
+            # self.temp_user_data_dir = tempfile.mkdtemp(prefix="chrome_user_data_")
+            # _temp_directories.append(self.temp_user_data_dir)
+            # options.add_argument(f"--user-data-dir={self.temp_user_data_dir}")
+            # options.add_argument("--no-first-run")
+            # options.add_argument("--no-default-browser-check")
 
         return options
 
