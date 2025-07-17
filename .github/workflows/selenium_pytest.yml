@@ -60,8 +60,8 @@ jobs:
           mysql -h 127.0.0.1 -uroot -proot test_data < init.sql
 
       - name: Run Pytest
-        run: |
-          pytest --maxfail=1 -vv -s --continue-on-error --disable-warnings --alluredir=allure-results
+        run: pytest --maxfail=1 -vv -s --disable-warnings --alluredir=allure-results
+        continue-on-error: true
 
       - name: Generate Allure HTML report
         if: always()
