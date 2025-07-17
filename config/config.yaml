@@ -15,7 +15,6 @@ page_load_timeout: 30            # Page load timeout in seconds
 # Logging Configuration
 log_level: INFO                   # Options: DEBUG, INFO, WARNING, ERROR
 log_file: logs/test.log          # Log file path
-max
 
 base_url: https://www.moneycontrol.com/fixed-income/calculator/state-bank-of-india/fixed-deposit-calculator-SBI-BSB001.html
 
