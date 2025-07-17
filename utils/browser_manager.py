@@ -6,6 +6,8 @@ from selenium.webdriver.chrome.options import Options as ChromeOptions
 from selenium.webdriver.firefox.options import Options as FirefoxOptions
 import os
 from utils.logger import logger
+import tempfile
+                
 
 with open("config/config.yaml", "r", encoding="utf-8") as f:
     config = yaml.safe_load(f)
@@ -54,16 +56,22 @@ class BrowserManager:
                 options.add_argument("--disable-dev-shm-usage")
                 options.add_argument("--disable-gpu")
                 options.add_argument("--window-size=1920,1080")
-                options.add_argument(
-                    "--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-                )
                 options.add_argument("--disable-extensions")
                 options.add_argument("--disable-plugins")
                 options.add_argument("--enable-logging")
                 options.add_argument("--log-level=0")
-                options.add_argument(
-                    "--enable-features=NetworkService,NetworkServiceInProcess"
-                )
+                options.add_argument("--enable-features=NetworkService,NetworkServiceInProcess")
+                options.add_argument("--disable-software-rasterizer")
+                options.add_argument("--disable-background-networking")
+                options.add_argument("--disable-default-apps")
+                options.add_argument("--remote-debugging-port=9222")
+
+                # ✅ Temporary unique user profile
+                temp_user_data = tempfile.mkdtemp()
+                options.add_argument(f"--user-data-dir={temp_user_data}")
+
+                        
+                
             options.add_argument("--disable-popup-blocking")
             options.add_argument("--disable-infobars")
             options.add_argument("--disable-notifications")
