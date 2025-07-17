@@ -61,13 +61,14 @@ def pytest_sessionstart(session):
     browser_version = "unknown"
 
     try:
-        temp_browser_manager = BrowserManager(browser_name=browser_name, headless=headless)
+        temp_browser_manager = BrowserManager()
+        # temp_browser_manager = BrowserManager(browser_name=browser_name, headless=headless)
         driver = temp_browser_manager.start_browser()
         browser_version = driver.capabilities.get("browserVersion", "unknown")
         logger.info(
             "Driver capabilities:\n" + json.dumps(driver.capabilities, indent=2)
         )
-    except Exception as e:
+    except (NoSuchElementException, TimeoutException, WebDriverException) as e:
         logger.error(f"Failed to get browser capabilities: {e}")
     finally:
         if temp_browser_manager:
@@ -144,7 +145,7 @@ def setup_teardown(request):
     driver = None
 
     try:
-        browser_manager = BrowserManager(browser_name, headless)
+        browser_manager = BrowserManager()
         driver = browser_manager.start_browser()
         logger.info(f"Browser {browser_name} started successfully")
 
