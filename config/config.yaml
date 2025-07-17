@@ -18,10 +18,8 @@ log_file: logs/test.log          # Log file path
 
 base_url: https://www.moneycontrol.com/fixed-income/calculator/state-bank-of-india/fixed-deposit-calculator-SBI-BSB001.html
 
-
 excel_data_file: data/excel_data.xlsx
 excel_data_sheet: Sheet3
-
 
 enable_screenshots: true
 # enable_logs: true
