@@ -61,7 +61,7 @@ jobs:
 
       - name: Run Pytest
         run: |
-          pytest --maxfail=1 --disable-warnings --alluredir=allure-results
+          pytest --maxfail=1 -vv -s --continue-on-error --disable-warnings --alluredir=allure-results
 
       - name: Generate Allure Report
         run: |
