@@ -13,6 +13,7 @@ jobs:
     permissions:
       contents: write
       pages: write
+      id-token: write
 
     services:
       mysql:
@@ -45,7 +46,7 @@ jobs:
           python-version: "3.10"
 
       - name: Cache pip dependencies
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: ~/.cache/pip
           key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
@@ -55,40 +56,20 @@ jobs:
       - name: Install system dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y wget unzip fonts-liberation libatk-bridge2.0-0 libatk1.0-0 \
+          sudo apt-get install -y wget unzip curl jq fonts-liberation libatk-bridge2.0-0 libatk1.0-0 \
             libcairo2 libcups2 libdrm2 libgbm1 libgtk-3-0 libnspr4 libnss3 libpango-1.0-0 \
             libu2f-udev libx11-xcb1 libxcomposite1 libxdamage1 libxfixes3 libxrandr2 xdg-utils
 
-      - name: Install Google Chrome
-        run: |
-          wget -q https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
-          sudo dpkg -i google-chrome-stable_current_amd64.deb || sudo apt-get -f install -y
-          rm google-chrome-stable_current_amd64.deb
-          google-chrome --version || { echo "Failed to run google-chrome --version"; exit 1; }
+      - name: Setup Chrome and ChromeDriver
+        uses: browser-actions/setup-chrome@v1
+        with:
+          chrome-version: stable
+          install-chromedriver: true
 
-      - name: Install ChromeDriver
+      - name: Verify Chrome and ChromeDriver installation
         run: |
-          CHROME_VERSION=$(google-chrome --version | grep -oP '\d+\.\d+\.\d+' || echo "")
-          if [ -z "$CHROME_VERSION" ]; then
-            echo "Could not determine Chrome version, falling back to latest ChromeDriver"
-            CHROMEDRIVER_VERSION=$(curl -sS https://chromedriver.storage.googleapis.com/LATEST_RELEASE || echo "")
-          else
-            CHROMEDRIVER_VERSION=$(curl -sS "https://chromedriver.storage.googleapis.com/LATEST_RELEASE_${CHROME_VERSION}" || echo "")
-            if [ -z "$CHROMEDRIVER_VERSION" ]; then
-              echo "No ChromeDriver version found for Chrome $CHROME_VERSION, falling back to latest"
-              CHROMEDRIVER_VERSION=$(curl -sS https://chromedriver.storage.googleapis.com/LATEST_RELEASE || echo "")
-            fi
-          fi
-          if [ -z "$CHROMEDRIVER_VERSION" ]; then
-            echo "Failed to determine ChromeDriver version, using default version 128.0.6613.84"
-            CHROMEDRIVER_VERSION="128.0.6613.84"
-          fi
-          echo "Installing ChromeDriver version: $CHROMEDRIVER_VERSION"
-          wget -q "https://chromedriver.storage.googleapis.com/${CHROMEDRIVER_VERSION}/chromedriver_linux64.zip" || { echo "Failed to download ChromeDriver"; exit 1; }
-          unzip chromedriver_linux64.zip || { echo "Failed to unzip ChromeDriver"; exit 1; }
-          sudo mv chromedriver /usr/local/bin/ || { echo "Failed to move ChromeDriver"; exit 1; }
-          sudo chmod +x /usr/local/bin/chromedriver || { echo "Failed to set ChromeDriver permissions"; exit 1; }
-          chromedriver --version || { echo "Failed to verify ChromeDriver version"; exit 1; }
+          google-chrome --version
+          chromedriver --version
 
       - name: Install dependencies
         run: |
@@ -119,6 +100,13 @@ jobs:
         run: |
           pkill -f chromedriver || true
           pkill -f chrome || true
+          sleep 2
+
+      - name: Create required directories
+        run: |
+          mkdir -p logs
+          mkdir -p allure-results
+          mkdir -p reports
 
       - name: Run Pytest with Allure
         run: |
@@ -138,12 +126,20 @@ jobs:
         run: |
           allure generate allure-results -o allure-report --clean
 
+      - name: Setup Pages
+        if: always() && github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: actions/configure-pages@v4
+
+      - name: Upload Pages artifact
+        if: always() && github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: ./allure-report
+
       - name: Deploy to GitHub Pages
         if: always() && github.event_name == 'push' && github.ref == 'refs/heads/main'
-        uses: peaceiris/actions-gh-pages@v3
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./allure-report
+        id: deployment
+        uses: actions/deploy-pages@v4
 
       - name: Upload Allure Report as Artifact
         if: always()
@@ -160,3 +156,9 @@ jobs:
           name: test-logs-${{ github.run_number }}
           path: logs
           retention-days: 3
+
+      - name: Cleanup
+        if: always()
+        run: |
+          pkill -f chromedriver || true
+          pkill -f chrome || true
