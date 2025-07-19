@@ -113,7 +113,7 @@ def cleanup_temp_directories():
             if os.path.exists(temp_dir):
                 shutil.rmtree(temp_dir)
                 logger.info(f"Cleaned up temporary directory: {temp_dir}")
-        except Exception as e:
+        except (NoSuchElementException, TimeoutException, WebDriverException) as e:
             logger.warning(f"Failed to clean up temporary directory {temp_dir}: {e}")
     _temp_dirs.clear()
 
