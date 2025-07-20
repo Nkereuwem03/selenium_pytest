@@ -1,27 +1,27 @@
 # Selenium Test Configuration
-browser: chrome                    # Options: chrome, firefox
-headless: true                    # Run browser in headless mode
-download_directory: ./downloads   # Directory for downloaded files
-file_type: application/octet-stream # MIME type for downloads
-timeout: 30                       # Default timeout in seconds
-retry_attempts: 3                 # Number of retry attempts for browser startup
-window_size: "1920,1080"         # Browser window size (width,height)
+browser: chrome                  
+headless: true                   
+download_directory: ./downloads   
+file_type: application/octet-stream
+timeout: 30                     
+retry_attempts: 3           
+window_size: "1920,1080"        
 
 # Test Configuration - Increased timeouts for CI environment
-test_timeout: 120                 # Test timeout in seconds (increased from 60)
-implicit_wait: 15                 # Implicit wait time in seconds (increased from 10)
-page_load_timeout: 60            # Page load timeout in seconds (increased from 30)
-script_timeout: 30               # Script execution timeout
+test_timeout: 120                 
+implicit_wait: 15        
+page_load_timeout: 60           
+script_timeout: 30              
 
 # Network and Performance Configuration
-enable_images: false             # Disable image loading for faster performance
-enable_javascript: false        # Disable JavaScript for faster loading
-connection_timeout: 60           # Connection timeout for network requests
-read_timeout: 120               # Read timeout for network requests
+enable_images: false             
+enable_javascript: false        
+connection_timeout: 60          
+read_timeout: 120              
 
 # Logging Configuration
-log_level: INFO                   # Options: DEBUG, INFO, WARNING, ERROR
-log_file: logs/test.log          # Log file path
+log_level: INFO                   
+log_file: logs/test.log        
 
 base_url: https://www.moneycontrol.com/fixed-income/calculator/state-bank-of-india/fixed-deposit-calculator-SBI-BSB001.html
 
@@ -36,7 +36,7 @@ enable_screenshots: true
 # enable_console: true
 
 # CI/CD Specific Settings
-ci_mode: true                    # Enable CI-specific optimizations
-max_wait_time: 30               # Maximum wait time for elements
-retry_on_failure: true          # Retry operations on failure
-cleanup_on_exit: true           # Clean up resources on test exit
+ci_mode: true                   
+max_wait_time: 30              
+retry_on_failure: true         
+cleanup_on_exit: true           
