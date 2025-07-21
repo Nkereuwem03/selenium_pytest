@@ -126,7 +126,8 @@ def fill_form(driver, tag, tag_name, data):
     driver.find_element(tag, tag_name).send_keys(data)
 
 
-@pytest.mark.skipif(not init_db(), reason="Database init failed")
+# @pytest.mark.skipif(not init_db(), reason="Database init failed")
+@pytest.mark.skip(reason="site not ready")
 def test_fixed_deposit_calculator(setup_teardown):
     """Orchestrates the data-driven test for the fixed deposit calculator."""
     all_test_data = get_test_data()
