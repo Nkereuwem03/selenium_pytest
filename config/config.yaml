@@ -1,27 +1,27 @@
 # Selenium Test Configuration
-browser: chrome                  
-headless: true                   
-download_directory: ./downloads   
+browser: chrome
+headless: true
+download_directory: ./downloads
 file_type: application/octet-stream
-timeout: 30                     
-retry_attempts: 3           
-window_size: "1920,1080"        
+timeout: 30
+retry_attempts: 3
+window_size: "1920,1080"
 
 # Test Configuration - Increased timeouts for CI environment
-test_timeout: 120                 
-implicit_wait: 15        
-page_load_timeout: 60           
-script_timeout: 30              
+test_timeout: 120
+implicit_wait: 15
+page_load_timeout: 60
+script_timeout: 30
 
 # Network and Performance Configuration
-enable_images: false             
-enable_javascript: false        
-connection_timeout: 60          
-read_timeout: 120              
+enable_images: false
+enable_javascript: false
+connection_timeout: 60
+read_timeout: 120
 
 # Logging Configuration
-log_level: INFO                   
-log_file: logs/test.log        
+log_level: INFO
+log_file: logs/test.log
 
 base_url: https://www.moneycontrol.com/fixed-income/calculator/state-bank-of-india/fixed-deposit-calculator-SBI-BSB001.html
 
@@ -36,7 +36,7 @@ enable_screenshots: true
 # enable_console: true
 
 # CI/CD Specific Settings
-ci_mode: true                   
-max_wait_time: 30              
-retry_on_failure: true         
-cleanup_on_exit: true           
+ci_mode: true
+max_wait_time: 30
+retry_on_failure: true
+cleanup_on_exit: true
