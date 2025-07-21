@@ -17,7 +17,7 @@ EXCEL_PATH = get_absolute_path("data", "excel_data.xlsx")
 GREEN_FILL = PatternFill(start_color="60b212", end_color="60b212", fill_type="solid")
 RED_FILL = PatternFill(start_color="ff0000", end_color="ff0000", fill_type="solid")
 
-
+@pytest.mark.skip(reason="site not ready")
 def test_fixed_deposit_calculator(setup_teardown):
     driver = setup_teardown
     file = EXCEL_PATH
