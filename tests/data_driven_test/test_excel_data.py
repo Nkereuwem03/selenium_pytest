@@ -11,11 +11,18 @@ from selenium.webdriver.support.select import Select
 from utils.paths import get_absolute_path
 from utils.excel_reader import get_row_count, read_data, update_cell, load_sheet
 from openpyxl.styles import PatternFill
-
+from selenium.webdriver.remote.webdriver import WebDriver
 
 EXCEL_PATH = get_absolute_path("data", "excel_data.xlsx")
 GREEN_FILL = PatternFill(start_color="60b212", end_color="60b212", fill_type="solid")
 RED_FILL = PatternFill(start_color="ff0000", end_color="ff0000", fill_type="solid")
+
+
+def find_element(driver: WebDriver, locator: tuple, data):
+    element = wait_for_element_presence(driver, locator)
+    element.clear()
+    element.send_keys(data)
+
 
 @pytest.mark.smoke
 def test_fixed_deposit_calculator(setup_teardown):
@@ -70,14 +77,18 @@ def test_fixed_deposit_calculator(setup_teardown):
 
             logger.info(f"Processing row {row}")
 
-            driver.find_element(By.CSS_SELECTOR, "#principal").clear()
-            driver.find_element(By.CSS_SELECTOR, "#principal").send_keys(str(principal))
+            find_element(driver, (By.CSS_SELECTOR, "#principal"), str(principal))
+            find_element(driver, (By.CSS_SELECTOR, "#interest"), str(rate))
+            find_element(driver, (By.CSS_SELECTOR, "#tenure"), str(period))
 
-            driver.find_element(By.CSS_SELECTOR, "#interest").clear()
-            driver.find_element(By.CSS_SELECTOR, "#interest").send_keys(str(rate))
+            # driver.find_element(By.CSS_SELECTOR, "#principal").clear()
+            # driver.find_element(By.CSS_SELECTOR, "#principal").send_keys(str(principal))
 
-            driver.find_element(By.CSS_SELECTOR, "#tenure").clear()
-            driver.find_element(By.CSS_SELECTOR, "#tenure").send_keys(str(period))
+            # driver.find_element(By.CSS_SELECTOR, "#interest").clear()
+            # driver.find_element(By.CSS_SELECTOR, "#interest").send_keys(str(rate))
+
+            # driver.find_element(By.CSS_SELECTOR, "#tenure").clear()
+            # driver.find_element.send_keys(str(period))
 
             try:
                 Select(
