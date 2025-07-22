@@ -6,6 +6,7 @@ file_type: application/octet-stream # MIME type for downloads
 timeout: 30                       # Default timeout in seconds
 retry_attempts: 3                 # Number of retry attempts for browser startup
 window_size: "1920,1080"         # Browser window size (width,height)
+use_user_data_dir: true
 
 # Test Configuration
 test_timeout: 60                  # Test timeout in seconds
