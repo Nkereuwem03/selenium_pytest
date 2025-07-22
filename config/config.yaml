@@ -1,6 +1,6 @@
 # Selenium Test Configuration
 browser: chrome                    # Options: chrome, firefox
-headless: true                    # Run browser in headless mode
+headless: false                    # Run browser in headless mode
 download_directory: ./downloads   # Directory for downloaded files
 file_type: application/octet-stream # MIME type for downloads
 timeout: 30                       # Default timeout in seconds
