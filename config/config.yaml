@@ -10,6 +10,7 @@ window_size: "1920,1080"         # Browser window size (width,height)
 # Test Configuration
 test_timeout: 60                  # Test timeout in seconds
 implicit_wait: 10                 # Implicit wait time in seconds
+explicit_wait: 10                 # Implicit wait time in seconds
 page_load_timeout: 120            # Increased page load timeout in seconds
 
 # Logging Configuration
