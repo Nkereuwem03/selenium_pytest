@@ -20,8 +20,17 @@ RED_FILL = PatternFill(start_color="ff0000", end_color="ff0000", fill_type="soli
 @pytest.mark.smoke
 def test_fixed_deposit_calculator(setup_teardown):
     driver = setup_teardown
-    driver.set_page_load_timeout(360)
-    driver.implicitly_wait(10)    
+    max_retries = 3
+    for attempt in range(max_retries):
+        try:
+            driver.set_page_load_timeout(60)
+            driver.get("https://www.moneycontrol.com/fixed-income/calculator/state-bank-of-india/fixed-deposit-calculator-SBI-BSB001.html")
+            break  # Success, exit retry loop
+        except TimeoutException:
+            if attempt == max_retries - 1:
+                pytest.fail("Failed to load page after multiple attempts")
+            logger.warning(f"Page load timeout, attempt {attempt + 1}, retrying...")
+            time.sleep(5)  
     file = EXCEL_PATH
 
     sheet = load_sheet(file, "Sheet3")
@@ -30,9 +39,9 @@ def test_fixed_deposit_calculator(setup_teardown):
     rows = get_row_count(file, "Sheet3")
 
     try:
-        driver.get(
-            "https://www.moneycontrol.com/fixed-income/calculator/state-bank-of-india/fixed-deposit-calculator-SBI-BSB001.html"
-        )
+        # driver.get(
+        #     "https://www.moneycontrol.com/fixed-income/calculator/state-bank-of-india/fixed-deposit-calculator-SBI-BSB001.html"
+        # )
 
         # for row in range(1, rows + 1):
         for idx, row in enumerate(sheet.iter_rows(min_row=2, values_only=True), start=2):
