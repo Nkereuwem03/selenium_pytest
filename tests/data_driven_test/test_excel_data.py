@@ -77,18 +77,18 @@ def test_fixed_deposit_calculator(setup_teardown):
 
             logger.info(f"Processing row {row}")
 
-            find_element(driver, (By.CSS_SELECTOR, "#principal"), str(principal))
-            find_element(driver, (By.CSS_SELECTOR, "#interest"), str(rate))
-            find_element(driver, (By.CSS_SELECTOR, "#tenure"), str(period))
+            # find_element(driver, (By.CSS_SELECTOR, "#principal"), str(principal))
+            # find_element(driver, (By.CSS_SELECTOR, "#interest"), str(rate))
+            # find_element(driver, (By.CSS_SELECTOR, "#tenure"), str(period))
 
-            # driver.find_element(By.CSS_SELECTOR, "#principal").clear()
-            # driver.find_element(By.CSS_SELECTOR, "#principal").send_keys(str(principal))
+            driver.find_element(By.CSS_SELECTOR, "#principal").clear()
+            driver.find_element(By.CSS_SELECTOR, "#principal").send_keys(str(principal))
 
-            # driver.find_element(By.CSS_SELECTOR, "#interest").clear()
-            # driver.find_element(By.CSS_SELECTOR, "#interest").send_keys(str(rate))
+            driver.find_element(By.CSS_SELECTOR, "#interest").clear()
+            driver.find_element(By.CSS_SELECTOR, "#interest").send_keys(str(rate))
 
-            # driver.find_element(By.CSS_SELECTOR, "#tenure").clear()
-            # driver.find_element.send_keys(str(period))
+            driver.find_element(By.CSS_SELECTOR, "#tenure").clear()
+            driver.find_element.send_keys(str(period))
 
             try:
                 Select(
