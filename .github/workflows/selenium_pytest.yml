@@ -109,7 +109,7 @@ jobs:
 
       - name: Run Pytest with Allure
         run: |
-          pytest --maxfail=1 -vv -s --tb=short --alluredir=allure-results --headless -m smoke
+          pytest --maxfail=1 -vv -s --tb=short --alluredir=allure-results --headless
         continue-on-error: false
         timeout-minutes: 15
 
