@@ -18,7 +18,7 @@ with open("config/config.yaml", "r", encoding="utf-8") as file:
 def test_app_commands(setup_teardown):
     driver = setup_teardown
     driver.get("https://testpages.eviltester.com/styled/basic-html-form-test.html")
-    driver.implicitly_wait(config["timeouts"]["implicit"])
+    driver.implicitly_wait(config["implicit_wait"])
     # driver.implicitly_wait(config.get("timeouts", {}).get("implicit", 10))
 
     try:
