@@ -172,9 +172,12 @@ def test_scrolling_2(setup_teardown):
     try:
         driver.get("https://www.countries-ofthe-world.com/flags-of-the-world.html")
 
-        nigeria_flag = driver.find_element(
-            By.XPATH, "//td[normalize-space()='Nigeria']"
+        nigeria_flag = wait_for_element_presence(
+            driver, (By.XPATH, "//td[normalize-space()='Nigeria']")
         )
+        # driver.find_element(
+        #     By.XPATH, "//td[normalize-space()='Nigeria']"
+        # )
         # nigeria_flag = driver.find_element(By.XPATH, "//img[@alt='Flag of Nigeria']")
 
         driver.execute_script("arguments[0].scrollIntoView();", nigeria_flag)
