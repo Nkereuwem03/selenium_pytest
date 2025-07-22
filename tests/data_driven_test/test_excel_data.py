@@ -20,6 +20,8 @@ RED_FILL = PatternFill(start_color="ff0000", end_color="ff0000", fill_type="soli
 @pytest.mark.smoke
 def test_fixed_deposit_calculator(setup_teardown):
     driver = setup_teardown
+    driver.set_page_load_timeout(360)
+    driver.implicitly_wait(10)    
     file = EXCEL_PATH
 
     sheet = load_sheet(file, "Sheet3")
