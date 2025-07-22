@@ -171,9 +171,11 @@ def test_scrolling_2(setup_teardown):
 
     try:
         driver.get("https://www.countries-ofthe-world.com/flags-of-the-world.html")
-        wait = WebDriverWait(driver, 10)
 
-        nigeria_flag = driver.find_element(By.XPATH, "//img[@alt='Flag of Nigeria']")
+        nigeria_flag = driver.find_element(
+            By.XPATH, "//td[normalize-space()='Nigeria']"
+        )
+        # nigeria_flag = driver.find_element(By.XPATH, "//img[@alt='Flag of Nigeria']")
 
         driver.execute_script("arguments[0].scrollIntoView();", nigeria_flag)
         time.sleep(3)
@@ -192,10 +194,6 @@ def test_scrolling_3(setup_teardown):
 
     try:
         driver.get("https://www.countries-ofthe-world.com/flags-of-the-world.html")
-        wait = WebDriverWait(driver, 10)
-
-        nigeria_flag = driver.find_element(By.XPATH, "//img[@alt='Flag of Nigeria']")
-
         driver.execute_script("window.scrollBy(0, document.body.scrollHeight)", "")
         time.sleep(3)
         driver.execute_script("window.scrollBy(0, -document.body.scrollHeight)", "")
