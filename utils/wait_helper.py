@@ -15,7 +15,7 @@ with open("config/config.yaml", "r", encoding="utf-8") as file:
     config = yaml.safe_load(file)
 
 
-timeout = config.get("timeouts", {}).get("explicit", 10)
+timeout = config.get("explicit_wait", 10)
 
 
 def wait_for_element_presence(driver: WebDriver, locator: tuple) -> WebElement:
