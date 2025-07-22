@@ -59,10 +59,12 @@ def test_app_commands(setup_teardown):
         comments_input.send_keys("This is a multi-line text-area")
 
         file_input.send_keys(file_path)
-        assert (
-            os.path.basename(file_input.get_attribute("value"))
-            == "file-example_PDF_1MB.pdf"
-        )
+        #         assert (
+        #             os.path.basename(file_input.get_attribute("value"))
+        #             == "file-example_PDF_1MB.pdf"
+        #         )
+        #           - file-example_PDF_1MB.pdf
+        #   + C:\fakepath\file-example_PDF_1MB.pdf
         assert file_input.get_attribute("value").endswith("file-example_PDF_1MB.pdf")
 
         for checkbox in checkboxes:
