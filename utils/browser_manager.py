@@ -4,12 +4,11 @@ import yaml
 import tempfile
 import os
 import shutil
-# For killing leftover processes
+import psutil  # For killing leftover processes
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options as ChromeOptions
 from selenium.webdriver.firefox.options import Options as FirefoxOptions
 from utils.logger import logger
-import psutil
 
 with open("config/config.yaml", "r", encoding="utf-8") as f:
     config = yaml.safe_load(f)
@@ -24,12 +23,23 @@ class BrowserManager:
         self.driver = None
         self.browser_name = browser_name or config.get("browser", "chrome").lower()
         self.headless = config.get("headless", False)
-        self.download_dir = os.path.abspath(config.get("download_directory", "./downloads"))
+        self.download_dir = os.path.abspath(
+            config.get("download_directory", "./downloads")
+        )
         self.user_data_dir = None
+        self.use_user_data_dir = config.get("use_user_data_dir", True)
+
+        # Disable user data dir in CI environments
+        if os.environ.get("CI") == "true":
+            self.use_user_data_dir = False
+
+        logger.info(f"use_user_data_dir = {self.use_user_data_dir}")
 
         if self.browser_name not in self.ALLOWED_BROWSERS:
             logger.warning(f"Unsupported browser: '{self.browser_name}'")
-            logger.warning(f"Supported browsers are: {', '.join(self.ALLOWED_BROWSERS)}")
+            logger.warning(
+                f"Supported browsers are: {', '.join(self.ALLOWED_BROWSERS)}"
+            )
             raise ValueError(
                 f"Unsupported browser: '{self.browser_name}'. Allowed values: {', '.join(self.ALLOWED_BROWSERS)}"
             )
@@ -40,7 +50,6 @@ class BrowserManager:
     def start_browser(self):
         """Initializes the WebDriver based on the specified browser with retry logic."""
         retries = config.get("retry_attempts", 3)
-        use_user_data_dir = config.get("use_user_data_dir", True)
 
         for attempt in range(retries):
             try:
@@ -55,9 +64,13 @@ class BrowserManager:
                     }
                     options.add_experimental_option("prefs", prefs)
 
-                    if use_user_data_dir:
-                        self.user_data_dir = tempfile.mkdtemp(prefix="chrome_user_data_")
-                        logger.info(f"Using temporary user data dir: {self.user_data_dir}")
+                    if self.use_user_data_dir:
+                        self.user_data_dir = tempfile.mkdtemp(
+                            prefix="chrome_user_data_"
+                        )
+                        logger.info(
+                            f"Using temporary user data dir: {self.user_data_dir}"
+                        )
                         options.add_argument(f"--user-data-dir={self.user_data_dir}")
 
                     if self.headless:
@@ -79,12 +92,16 @@ class BrowserManager:
                         options.add_argument("--window-size=1920,1080")
                         options.add_argument("--disable-images")
                         options.add_argument("--disable-javascript")
-                        options.add_argument("--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+                        options.add_argument(
+                            "--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+                        )
                         options.add_argument("--disable-extensions")
                         options.add_argument("--disable-plugins")
                         options.add_argument("--enable-logging")
                         options.add_argument("--log-level=0")
-                        options.add_argument("--enable-features=NetworkService,NetworkServiceInProcess")
+                        options.add_argument(
+                            "--enable-features=NetworkService,NetworkServiceInProcess"
+                        )
 
                     options.add_argument("--disable-popup-blocking")
                     options.add_argument("--disable-infobars")
@@ -94,13 +111,19 @@ class BrowserManager:
                     options.add_argument("--ignore-certificate-errors")
                     options.add_argument("--ignore-ssl-errors")
                     options.add_argument("--ignore-certificate-errors-spki-list")
-                    options.add_experimental_option("excludeSwitches", ["enable-automation"])
+                    options.add_experimental_option(
+                        "excludeSwitches", ["enable-automation"]
+                    )
                     options.add_experimental_option("useAutomationExtension", False)
-                    options.add_argument("--disable-blink-features=AutomationControlled")
+                    options.add_argument(
+                        "--disable-blink-features=AutomationControlled"
+                    )
 
                     self.driver = webdriver.Chrome(options=options)
                     self.driver.implicitly_wait(config.get("implicit_wait", 10))
-                    self.driver.set_page_load_timeout(config.get("page_load_timeout", 60))
+                    self.driver.set_page_load_timeout(
+                        config.get("page_load_timeout", 60)
+                    )
                     self.driver.set_script_timeout(30)
                     self.driver.maximize_window()
 
@@ -109,8 +132,12 @@ class BrowserManager:
                     file_type = config.get("file_type", "application/octet-stream")
                     options.set_preference("browser.download.folderList", 2)
                     options.set_preference("browser.download.dir", self.download_dir)
-                    options.set_preference("browser.download.manager.showWhenStarting", False)
-                    options.set_preference("browser.helperApps.neverAsk.saveToDisk", file_type)
+                    options.set_preference(
+                        "browser.download.manager.showWhenStarting", False
+                    )
+                    options.set_preference(
+                        "browser.helperApps.neverAsk.saveToDisk", file_type
+                    )
                     options.set_preference("dom.webnotifications.enabled", False)
                     options.set_preference("dom.push.enabled", False)
                     options.set_preference("permissions.default.image", 2)
@@ -121,11 +148,15 @@ class BrowserManager:
 
                     self.driver = webdriver.Firefox(options=options)
                     self.driver.implicitly_wait(config.get("implicit_wait", 10))
-                    self.driver.set_page_load_timeout(config.get("page_load_timeout", 60))
+                    self.driver.set_page_load_timeout(
+                        config.get("page_load_timeout", 60)
+                    )
                     self.driver.set_script_timeout(30)
                     self.driver.maximize_window()
 
-                logger.info(f"Browser {self.browser_name} started successfully on attempt {attempt + 1}")
+                logger.info(
+                    f"Browser {self.browser_name} started successfully on attempt {attempt + 1}"
+                )
                 return self.driver
 
             except Exception as e:
@@ -133,9 +164,13 @@ class BrowserManager:
                 if self.user_data_dir and os.path.exists(self.user_data_dir):
                     try:
                         shutil.rmtree(self.user_data_dir, ignore_errors=True)
-                        logger.info(f"Cleaned user data dir after failed attempt: {self.user_data_dir}")
+                        logger.info(
+                            f"Cleaned user data dir after failed attempt: {self.user_data_dir}"
+                        )
                     except Exception as cleanup_error:
-                        logger.warning(f"Failed to clean user data dir: {cleanup_error}")
+                        logger.warning(
+                            f"Failed to clean user data dir: {cleanup_error}"
+                        )
                     self.user_data_dir = None
                 if attempt == retries - 1:
                     logger.error(f"Failed to start browser after {retries} attempts")
@@ -153,11 +188,16 @@ class BrowserManager:
             self.driver = None
 
         # Kill leftover Chrome processes
-        for proc in psutil.process_iter(['pid', 'name']):
-            if proc.info['name'] and ('chrome' in proc.info['name'].lower() or 'chromedriver' in proc.info['name'].lower()):
+        for proc in psutil.process_iter(["pid", "name"]):
+            if proc.info["name"] and (
+                "chrome" in proc.info["name"].lower()
+                or "chromedriver" in proc.info["name"].lower()
+            ):
                 try:
                     proc.kill()
-                    logger.info(f"Killed leftover process: {proc.info['name']} (PID: {proc.info['pid']})")
+                    logger.info(
+                        f"Killed leftover process: {proc.info['name']} (PID: {proc.info['pid']})"
+                    )
                 except Exception as e:
                     logger.warning(f"Failed to kill process {proc.info['name']}: {e}")
 
@@ -167,5 +207,7 @@ class BrowserManager:
                 shutil.rmtree(self.user_data_dir, ignore_errors=True)
                 logger.info(f"Cleaned up user data directory: {self.user_data_dir}")
             except Exception as e:
-                logger.warning(f"Failed to clean up user data directory {self.user_data_dir}: {e}")
+                logger.warning(
+                    f"Failed to clean up user data directory {self.user_data_dir}: {e}"
+                )
             self.user_data_dir = None
