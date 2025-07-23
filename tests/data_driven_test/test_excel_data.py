@@ -9,9 +9,10 @@ from utils.wait_helper import wait_for_element_presence
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.select import Select
 from utils.paths import get_absolute_path
-from utils.excel_reader import get_row_count, read_data, update_cell, load_sheet
+from utils.excel_reader import get_row_count, update_cell, load_sheet
 from openpyxl.styles import PatternFill
 from selenium.webdriver.remote.webdriver import WebDriver
+
 
 EXCEL_PATH = get_absolute_path("data", "excel_data.xlsx")
 GREEN_FILL = PatternFill(start_color="60b212", end_color="60b212", fill_type="solid")
@@ -24,15 +25,14 @@ def find_element(driver: WebDriver, locator: tuple, data):
     element.send_keys(data)
 
 
-@pytest.mark.skip(reason="skipping...")
 def test_fixed_deposit_calculator(setup_teardown):
     driver = setup_teardown
     max_retries = 3
     for attempt in range(max_retries):
         try:
             driver.set_page_load_timeout(60)
-            driver.get("https://www.moneycontrol.com/fixed-income/calculator/state-bank-of-india/fixed-deposit-calculator-SBI-BSB001.html")
-            break  # Success, exit retry loop
+            driver.get("https://fd-calculator.in/result")
+            break 
         except TimeoutException:
             if attempt == max_retries - 1:
                 pytest.fail("Failed to load page after multiple attempts")
@@ -42,13 +42,9 @@ def test_fixed_deposit_calculator(setup_teardown):
 
     sheet = load_sheet(file, "Sheet3")
 
-    # sheet = "Sheet3"
     rows = get_row_count(file, "Sheet3")
 
     try:
-        # driver.get(
-        #     "https://www.moneycontrol.com/fixed-income/calculator/state-bank-of-india/fixed-deposit-calculator-SBI-BSB001.html"
-        # )
 
         # for row in range(1, rows + 1):
         for idx, row in enumerate(sheet.iter_rows(min_row=2, values_only=True), start=2):
@@ -63,12 +59,14 @@ def test_fixed_deposit_calculator(setup_teardown):
             # frequency = read_data(file, sheet, row, 5)
             # expected_value = read_data(file, sheet, row, 6)
 
-            principal = row[0]
-            rate = row[1]
-            period = row[2]
-            period_unit = row[3]
+            amount = row[0]
+            period_value = row[1]
+            period_unit = row[2]
+            interest = row[3]
             frequency = row[4]
             expected_value = row[5]
+            
+            print(amount, period_value, period_unit, interest, frequency, expected_value)
 
             # if(any(value is None or str(value).strip() == "" for value in [principal, rate, period, period_unit, frequency, expected_value])):
             #     logger.warning(f"Row {row}: Skipping due to empty/None values")
@@ -77,41 +75,31 @@ def test_fixed_deposit_calculator(setup_teardown):
 
             logger.info(f"Processing row {row}")
 
-            # find_element(driver, (By.CSS_SELECTOR, "#principal"), str(principal))
-            # find_element(driver, (By.CSS_SELECTOR, "#interest"), str(rate))
-            # find_element(driver, (By.CSS_SELECTOR, "#tenure"), str(period))
-
-            driver.find_element(By.CSS_SELECTOR, "#principal").clear()
-            driver.find_element(By.CSS_SELECTOR, "#principal").send_keys(str(principal))
-
-            driver.find_element(By.CSS_SELECTOR, "#interest").clear()
-            driver.find_element(By.CSS_SELECTOR, "#interest").send_keys(str(rate))
-
-            driver.find_element(By.CSS_SELECTOR, "#tenure").clear()
-            driver.find_element.send_keys(str(period))
+            find_element(driver, (By.CSS_SELECTOR, "#amountInputField"), str(amount))
+            find_element(driver, (By.CSS_SELECTOR, "#periodInputField"), str(period_value))
 
             try:
                 Select(
-                    driver.find_element(By.ID, "tenurePeriod")
+                    driver.find_element(By.ID, "amountSelectField")
                 ).select_by_visible_text(str(period_unit).strip())
             except (NoSuchElementException, TimeoutException, ValueError) as e:
                 logger.error(f"Test failed due to: {type(e).__name__}: {e}")
                 update_cell(file, "Sheet3", idx, 8, value="fail", fill=RED_FILL)
                 continue
 
+            find_element(driver, (By.CSS_SELECTOR, "#interestInputField"), str(interest))
+
             try:
-                Select(driver.find_element(By.ID, "frequency")).select_by_visible_text(
-                    str(frequency)
-                )
+                Select(
+                    driver.find_element(By.ID, "frequencySelectField")
+                ).select_by_visible_text(str(frequency).strip())
             except (NoSuchElementException, TimeoutException, ValueError) as e:
                 logger.error(f"Test failed due to: {type(e).__name__}: {e}")
                 update_cell(file, "Sheet3", idx, 8, value="fail", fill=RED_FILL)
                 continue
 
             try:
-                calc_btn = driver.find_element(
-                    By.XPATH, "//div[@class='cal_div']//a[1]/img"
-                )
+                calc_btn = driver.find_element(By.ID, "calculateButton")
                 driver.execute_script("arguments[0].click();", calc_btn)
             except (NoSuchElementException, TimeoutException, ValueError) as e:
                 logger.error(f"Test failed due to: {type(e).__name__}: {e}")
@@ -119,12 +107,12 @@ def test_fixed_deposit_calculator(setup_teardown):
 
             try:
                 result_elem = wait_for_element_presence(
-                    driver, (By.CSS_SELECTOR, "#resp_matval strong")
+                    driver, (By.CSS_SELECTOR, "#futureValue")
                 )
-                actual_value = float(result_elem.text.replace(",", ""))
+                actual_value = float(result_elem.text.replace("Lakh", "").strip())
                 expected_value = float(expected_value)
 
-                if round(actual_value, 2) == round(expected_value, 2):
+                if round(actual_value, 1) == round(expected_value, 1):
                     update_cell(file, "Sheet3", idx, 8, value="pass", fill=GREEN_FILL)
                 else:
                     update_cell(file, "Sheet3", idx, 8, value="fail", fill=RED_FILL)
