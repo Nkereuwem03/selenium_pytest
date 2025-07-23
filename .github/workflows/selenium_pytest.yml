@@ -64,36 +64,48 @@ jobs:
             xvfb psmisc
 
       - name: Setup Chrome and ChromeDriver
-        run: |
-          # Remove any existing Chrome installations
-          sudo apt-get remove -y google-chrome-stable || true
-          
-          # Install specific Chrome version that's known to work well
-          wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | sudo apt-key add -
-          echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" | sudo tee /etc/apt/sources.list.d/google-chrome.list
-          sudo apt-get update
-          sudo apt-get install -y google-chrome-stable
-          
-          # Install compatible ChromeDriver
-          CHROME_VERSION=$(google-chrome --version | cut -d ' ' -f3 | cut -d '.' -f1)
-          echo "Chrome version: $CHROME_VERSION"
-          
-          # Download ChromeDriver
-          CHROMEDRIVER_VERSION=$(curl -s "https://chromedriver.storage.googleapis.com/LATEST_RELEASE_$CHROME_VERSION")
-          echo "ChromeDriver version: $CHROMEDRIVER_VERSION"
-          
-          wget -O /tmp/chromedriver.zip "https://chromedriver.storage.googleapis.com/$CHROMEDRIVER_VERSION/chromedriver_linux64.zip"
-          sudo unzip -o /tmp/chromedriver.zip -d /usr/local/bin/
-          sudo chmod +x /usr/local/bin/chromedriver
-          
-          # Verify installation
-          which chromedriver
-          chromedriver --version
+        uses: browser-actions/setup-chrome@v1
+        with:
+          chrome-version: stable
+          install-chromedriver: true
 
       - name: Verify Chrome and ChromeDriver installation
         run: |
           google-chrome --version
           chromedriver --version
+          which chromedriver
+
+      - name: Alternative Chrome Setup (fallback)
+        if: failure()
+        run: |
+          echo "=== Fallback Chrome Setup ==="
+          # Remove any problematic installations
+          sudo apt-get remove -y google-chrome-stable || true
+          sudo rm -f /usr/local/bin/chromedriver || true
+          
+          # Install Chrome manually
+          wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | sudo gpg --dearmor -o /usr/share/keyrings/googlechrome-linux-keyring.gpg
+          echo "deb [arch=amd64 signed-by=/usr/share/keyrings/googlechrome-linux-keyring.gpg] http://dl.google.com/linux/chrome/deb/ stable main" | sudo tee /etc/apt/sources.list.d/google.list
+          sudo apt-get update
+          sudo apt-get install -y google-chrome-stable
+          
+          # Let Selenium auto-download ChromeDriver
+          python -c "
+          from selenium import webdriver
+          from selenium.webdriver.chrome.options import Options
+          options = Options()
+          options.add_argument('--headless')
+          options.add_argument('--no-sandbox')
+          options.add_argument('--disable-dev-shm-usage')
+          print('Testing Chrome with selenium-manager...')
+          driver = webdriver.Chrome(options=options)
+          print('Chrome version:', driver.capabilities['browserVersion'])
+          print('ChromeDriver setup successful via selenium-manager')
+          driver.quit()
+          "
+          
+          google-chrome --version
+          echo "Selenium will auto-manage ChromeDriver"
 
       - name: Start virtual display
         run: |
@@ -180,6 +192,10 @@ jobs:
           echo "GITHUB_ACTIONS: $GITHUB_ACTIONS"
           echo "Available temp space:"
           df -h /tmp
+          echo "Chrome version:"
+          google-chrome --version || echo "Chrome not found"
+          echo "ChromeDriver version:"
+          chromedriver --version || echo "ChromeDriver not found"
           echo "Chrome processes before test:"
           ps aux | grep -E "(chrome|chromedriver)" | grep -v grep || echo "No Chrome processes found"
 
