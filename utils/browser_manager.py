@@ -4,6 +4,7 @@ import yaml
 import tempfile
 import os
 import shutil
+import psutil  # For killing leftover processes
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options as ChromeOptions
 from selenium.webdriver.firefox.options import Options as FirefoxOptions
@@ -22,17 +23,14 @@ class BrowserManager:
         self.driver = None
         self.browser_name = browser_name or config.get("browser", "chrome").lower()
         self.headless = config.get("headless", False)
-        self.download_dir = os.path.abspath(
-            config.get("download_directory", "./downloads")
-        )
+        self.download_dir = os.path.abspath(config.get("download_directory", "./downloads"))
         self.user_data_dir = None
 
         if self.browser_name not in self.ALLOWED_BROWSERS:
             logger.warning(f"Unsupported browser: '{self.browser_name}'")
             logger.warning(f"Supported browsers are: {', '.join(self.ALLOWED_BROWSERS)}")
             raise ValueError(
-                f"Unsupported browser: '{self.browser_name}'. "
-                f"Allowed values: {', '.join(self.ALLOWED_BROWSERS)}"
+                f"Unsupported browser: '{self.browser_name}'. Allowed values: {', '.join(self.ALLOWED_BROWSERS)}"
             )
 
         if not os.path.exists(self.download_dir):
@@ -56,7 +54,6 @@ class BrowserManager:
                     }
                     options.add_experimental_option("prefs", prefs)
 
-                    # Use a unique temporary user data directory
                     if use_user_data_dir:
                         self.user_data_dir = tempfile.mkdtemp(prefix="chrome_user_data_")
                         logger.info(f"Using temporary user data dir: {self.user_data_dir}")
@@ -81,9 +78,7 @@ class BrowserManager:
                         options.add_argument("--window-size=1920,1080")
                         options.add_argument("--disable-images")
                         options.add_argument("--disable-javascript")
-                        options.add_argument(
-                            "--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-                        )
+                        options.add_argument("--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
                         options.add_argument("--disable-extensions")
                         options.add_argument("--disable-plugins")
                         options.add_argument("--enable-logging")
@@ -103,7 +98,6 @@ class BrowserManager:
                     options.add_argument("--disable-blink-features=AutomationControlled")
 
                     self.driver = webdriver.Chrome(options=options)
-
                     self.driver.implicitly_wait(config.get("implicit_wait", 10))
                     self.driver.set_page_load_timeout(config.get("page_load_timeout", 60))
                     self.driver.set_script_timeout(30)
@@ -157,6 +151,16 @@ class BrowserManager:
                 logger.warning(f"Error quitting browser: {e}")
             self.driver = None
 
+        # Kill leftover Chrome processes
+        for proc in psutil.process_iter(['pid', 'name']):
+            if proc.info['name'] and ('chrome' in proc.info['name'].lower() or 'chromedriver' in proc.info['name'].lower()):
+                try:
+                    proc.kill()
+                    logger.info(f"Killed leftover process: {proc.info['name']} (PID: {proc.info['pid']})")
+                except Exception as e:
+                    logger.warning(f"Failed to kill process {proc.info['name']}: {e}")
+
+        # Cleanup user data directory
         if self.user_data_dir and os.path.exists(self.user_data_dir):
             try:
                 shutil.rmtree(self.user_data_dir, ignore_errors=True)
