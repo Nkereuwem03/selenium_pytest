@@ -32,12 +32,12 @@ def test_fixed_deposit_calculator(setup_teardown):
         try:
             driver.set_page_load_timeout(60)
             driver.get("https://fd-calculator.in/result")
-            break 
+            break
         except TimeoutException:
             if attempt == max_retries - 1:
                 pytest.fail("Failed to load page after multiple attempts")
             logger.warning(f"Page load timeout, attempt {attempt + 1}, retrying...")
-            time.sleep(5)  
+            time.sleep(5)
     file = EXCEL_PATH
 
     sheet = load_sheet(file, "Sheet3")
@@ -47,7 +47,9 @@ def test_fixed_deposit_calculator(setup_teardown):
     try:
 
         # for row in range(1, rows + 1):
-        for idx, row in enumerate(sheet.iter_rows(min_row=2, values_only=True), start=2):
+        for idx, row in enumerate(
+            sheet.iter_rows(min_row=2, values_only=True), start=2
+        ):
 
             if all(cell is None or str(cell).strip() == "" for cell in row):
                 continue
@@ -65,8 +67,10 @@ def test_fixed_deposit_calculator(setup_teardown):
             interest = row[3]
             frequency = row[4]
             expected_value = row[5]
-            
-            print(amount, period_value, period_unit, interest, frequency, expected_value)
+
+            print(
+                amount, period_value, period_unit, interest, frequency, expected_value
+            )
 
             # if(any(value is None or str(value).strip() == "" for value in [principal, rate, period, period_unit, frequency, expected_value])):
             #     logger.warning(f"Row {row}: Skipping due to empty/None values")
@@ -76,7 +80,9 @@ def test_fixed_deposit_calculator(setup_teardown):
             logger.info(f"Processing row {row}")
 
             find_element(driver, (By.CSS_SELECTOR, "#amountInputField"), str(amount))
-            find_element(driver, (By.CSS_SELECTOR, "#periodInputField"), str(period_value))
+            find_element(
+                driver, (By.CSS_SELECTOR, "#periodInputField"), str(period_value)
+            )
 
             try:
                 Select(
@@ -87,7 +93,9 @@ def test_fixed_deposit_calculator(setup_teardown):
                 update_cell(file, "Sheet3", idx, 8, value="fail", fill=RED_FILL)
                 continue
 
-            find_element(driver, (By.CSS_SELECTOR, "#interestInputField"), str(interest))
+            find_element(
+                driver, (By.CSS_SELECTOR, "#interestInputField"), str(interest)
+            )
 
             try:
                 Select(
