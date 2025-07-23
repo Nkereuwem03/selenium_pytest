@@ -71,7 +71,7 @@ jobs:
           google-chrome --version
           chromedriver --version
 
-      - name: Install dependencies
+      - name: Install Python dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
@@ -100,6 +100,11 @@ jobs:
           pkill -f chromedriver || true
           pkill -f chrome || true
           sleep 2
+
+      - name: Cleanup leftover Chrome user data directories
+        run: |
+          echo "Cleaning up old Chrome user-data-dir directories"
+          sudo rm -rf /tmp/chrome_user_data_*
 
       - name: Create required directories
         run: |
