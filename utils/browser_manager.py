@@ -4,11 +4,12 @@ import yaml
 import tempfile
 import os
 import shutil
-import psutil  # For killing leftover processes
+# For killing leftover processes
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options as ChromeOptions
 from selenium.webdriver.firefox.options import Options as FirefoxOptions
 from utils.logger import logger
+import psutil
 
 with open("config/config.yaml", "r", encoding="utf-8") as f:
     config = yaml.safe_load(f)
