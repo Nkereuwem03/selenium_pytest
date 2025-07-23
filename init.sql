@@ -1,6 +1,6 @@
-CREATE DATABASE IF NOT EXISTS selenium;
+CREATE DATABASE IF NOT EXISTS test_data;
 
-USE selenium;
+USE test_data;
 
 CREATE TABLE IF NOT EXISTS fixed_deposits (
     id INT PRIMARY KEY AUTO_INCREMENT,
