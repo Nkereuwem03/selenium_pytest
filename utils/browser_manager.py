@@ -169,8 +169,7 @@ class BrowserManager:
             "--disable-blink-features=AutomationControlled",
             "--disable-features=VizDisplayCompositor",
             "--disable-ipc-flooding-protection",
-            "--single-process",  # This can help avoid some multi-process issues
-            "--no-zygote",  # Disable zygote process
+            "--remote-allow-origins=*",  # Allow remote connections
         ]
 
         for arg in essential_args:
@@ -183,12 +182,13 @@ class BrowserManager:
                 "--disable-setuid-sandbox",
                 "--disable-software-rasterizer",
                 "--disable-images",
-                "--disable-javascript",
                 "--window-size=1920,1080",
                 "--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
                 "--enable-logging",
                 "--log-level=0",
                 "--enable-features=NetworkService,NetworkServiceInProcess",
+                "--remote-debugging-port=0",  # Allow remote debugging
+                "--enable-chrome-browser-cloud-management",
             ]
             for arg in headless_args:
                 options.add_argument(arg)
@@ -226,8 +226,14 @@ class BrowserManager:
                     )
                     self.driver.set_script_timeout(30)
 
-                    if not self.headless:
-                        self.driver.maximize_window()
+                    # Only maximize window if not in headless mode and not in CI
+                    if not self.headless and not os.environ.get("CI"):
+                        try:
+                            self.driver.maximize_window()
+                        except Exception as e:
+                            logger.warning(f"Could not maximize window: {e}")
+                            # Set window size manually as fallback
+                            self.driver.set_window_size(1920, 1080)
 
                 elif self.browser_name == "firefox":
                     options = FirefoxOptions()
@@ -258,8 +264,12 @@ class BrowserManager:
                     )
                     self.driver.set_script_timeout(30)
 
-                    if not self.headless:
-                        self.driver.maximize_window()
+                    if not self.headless and not os.environ.get("CI"):
+                        try:
+                            self.driver.maximize_window()
+                        except Exception as e:
+                            logger.warning(f"Could not maximize window: {e}")
+                            self.driver.set_window_size(1920, 1080)
 
                 logger.info(
                     f"Browser {self.browser_name} started successfully on attempt {attempt + 1}"
