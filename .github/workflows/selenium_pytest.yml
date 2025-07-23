@@ -35,6 +35,8 @@ jobs:
       DATABASE_USER: root
       DATABASE_PASSWORD: root
       DATABASE_NAME: test_data
+      DISPLAY: ":99"
+      TMPDIR: /tmp
 
     steps:
       - name: Checkout code
@@ -58,7 +60,8 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y wget unzip curl jq fonts-liberation libatk-bridge2.0-0 libatk1.0-0 \
             libcairo2 libcups2 libdrm2 libgbm1 libgtk-3-0 libnspr4 libnss3 libpango-1.0-0 \
-            libu2f-udev libx11-xcb1 libxcomposite1 libxdamage1 libxfixes3 libxrandr2 xdg-utils
+            libu2f-udev libx11-xcb1 libxcomposite1 libxdamage1 libxfixes3 libxrandr2 xdg-utils \
+            xvfb psmisc
 
       - name: Setup Chrome and ChromeDriver
         uses: browser-actions/setup-chrome@v1
@@ -70,6 +73,11 @@ jobs:
         run: |
           google-chrome --version
           chromedriver --version
+
+      - name: Start virtual display
+        run: |
+          sudo Xvfb :99 -screen 0 1920x1080x24 > /dev/null 2>&1 &
+          sleep 3
 
       - name: Install Python dependencies
         run: |
@@ -95,28 +103,86 @@ jobs:
           fi
           mysql -h 127.0.0.1 -uroot -proot test_data < init.sql
 
-      - name: Kill existing Chrome processes
+      - name: Comprehensive Chrome cleanup
         run: |
-          pkill -f chromedriver || true
-          pkill -f chrome || true
-          sleep 2
+          echo "=== Comprehensive Chrome Cleanup ==="
+          
+          # Kill all Chrome and ChromeDriver processes
+          sudo pkill -f chrome || true
+          sudo pkill -f chromedriver || true
+          sudo killall -9 chrome || true
+          sudo killall -9 chromedriver || true
+          
+          # Clean up Chrome user data directories
+          sudo rm -rf /tmp/chrome_user_data_* || true
+          sudo rm -rf /tmp/.org.chromium.* || true
+          sudo rm -rf /tmp/scoped_dir* || true
+          sudo rm -rf /home/runner/tmp/chrome_user_data_* || true
+          sudo rm -rf ~/.config/google-chrome* || true
+          sudo rm -rf ~/.cache/google-chrome* || true
+          
+          # Clean up any Chrome lock files
+          sudo rm -rf /tmp/.X*-lock || true
+          sudo rm -rf /tmp/.X11-unix/X* || true
+          
+          # Clean up shared memory
+          sudo rm -rf /dev/shm/* || true
+          
+          # Show what processes are still running
+          ps aux | grep -E "(chrome|chromedriver)" | grep -v grep || echo "No Chrome processes found"
+          
+          # Give everything time to clean up
+          sleep 3
+          
+          echo "=== Cleanup Complete ==="
 
-      - name: Cleanup leftover Chrome user data directories
+      - name: Set proper permissions for temp directories
         run: |
-          echo "Cleaning up old Chrome user-data-dir directories"
-          sudo rm -rf /tmp/chrome_user_data_*
+          sudo chmod 1777 /tmp
+          mkdir -p /tmp/chrome_temp
+          chmod 755 /tmp/chrome_temp
 
       - name: Create required directories
         run: |
           mkdir -p logs
           mkdir -p allure-results
           mkdir -p reports
+          mkdir -p downloads
+
+      - name: Pre-test environment check
+        run: |
+          echo "=== Environment Check ==="
+          echo "TMPDIR: $TMPDIR"
+          echo "USER: $USER"
+          echo "HOME: $HOME"
+          echo "CI: $CI"
+          echo "GITHUB_ACTIONS: $GITHUB_ACTIONS"
+          echo "Available temp space:"
+          df -h /tmp
+          echo "Chrome processes before test:"
+          ps aux | grep -E "(chrome|chromedriver)" | grep -v grep || echo "No Chrome processes found"
 
       - name: Run Pytest with Allure
         run: |
+          # Set additional environment variables for Chrome
+          export CHROME_NO_SANDBOX=1
+          export CHROME_DISABLE_GPU=1
+          export CHROME_HEADLESS=1
+          
+          # Run the tests
           pytest --maxfail=1 -vv -s --tb=short --alluredir=allure-results --headless -m smoke
         continue-on-error: false
         timeout-minutes: 15
+
+      - name: Post-test cleanup
+        if: always()
+        run: |
+          echo "=== Post-test Cleanup ==="
+          sudo pkill -f chrome || true
+          sudo pkill -f chromedriver || true
+          sudo rm -rf /tmp/chrome_user_data_* || true
+          sudo rm -rf /tmp/.org.chromium.* || true
+          sudo rm -rf /tmp/scoped_dir* || true
 
       - name: Install Allure CLI
         if: always()
@@ -162,8 +228,9 @@ jobs:
           path: logs
           retention-days: 3
 
-      - name: Cleanup
+      - name: Final cleanup
         if: always()
         run: |
-          pkill -f chromedriver || true
-          pkill -f chrome || true
+          sudo pkill -f chrome || true
+          sudo pkill -f chromedriver || true
+          sudo rm -rf /tmp/chrome_user_data_* || true
