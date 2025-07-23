@@ -3,21 +3,29 @@ CREATE DATABASE IF NOT EXISTS selenium;
 USE selenium;
 
 CREATE TABLE IF NOT EXISTS fixed_deposits (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    Principal INT(100) NOT NULL,
-    RateOfInterest DECIMAL(5, 2) NOT NULL,
-    Period INT NOT NULL,
-    PeriodUnit VARCHAR(20) NOT NULL,
-    Frequency VARCHAR(50) NOT NULL,
-    MaturityValue DECIMAL(12, 2) NOT NULL,
-    Expected VARCHAR(10) NOT NULL,
-    Result VARCHAR(10) NOT NULL
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    fd_amount_rs INT NOT NULL,
+    fd_period_value INT NOT NULL,
+    fd_period_unit VARCHAR(10), 
+    interest_rate DECIMAL(5, 2) NOT NULL, 
+    compounding_frequency VARCHAR(20) NOT NULL, 
+    maturity_amount_lakh DECIMAL(10, 1) NOT NULL, 
+    expected_result VARCHAR(10) NOT NULL, 
+    actual_result VARCHAR(10) 
 );
 
-INSERT INTO fixed_deposits (Principal, RateOfInterest, Period, PeriodUnit, Frequency, MaturityValue, Expected, Result)
-VALUES
-(20000, 10.00, 2, 'year(s)', 'Simple Interest', 24000.00, 'pass', ''),
-(40000, 15.00, 5, 'year(s)', 'Simple Interest', 70000.00, 'pass', ''),
-(50000, 10.00, 3, 'month(s)', 'Simple Interest', 51250.00, 'pass', ''),
-(75000, 12.00, 2, 'month(s)', 'Simple Interest', 76500.00, 'pass', ''),
-(75000, 12.00, 2, 'day(s)', 'Simple Interest', 75045.32, 'fail', '');
+INSERT INTO fixed_deposits (
+    fd_amount_rs,
+    fd_period_value,
+    fd_period_unit,
+    interest_rate,
+    compounding_frequency,
+    maturity_amount_lakh,
+    expected_result,
+    actual_result
+) VALUES
+(20000, 2, 'years', 10.00, 'Monthly', 0.2, 'pass', NULL),
+(40000, 5, 'years', 15.00, 'Quarterly', 0.8, 'pass', NULL),
+(50000, 3, 'months', 10.00, 'Half Yearly', 0.6, 'pass', NULL),
+(75000, 2, 'months', 12.00, 'Yearly', 0.9, 'pass', NULL),
+(85000, 2, 'days', 12.00, 'Yearly', 2.1, 'fail', NULL);
