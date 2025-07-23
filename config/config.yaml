@@ -1,18 +1,18 @@
 # Selenium Test Configuration
 browser: chrome                    # Options: chrome, firefox
-headless: false                    # Run browser in headless mode
+headless: false                    # Run browser in headless mode (will be overridden in CI)
 download_directory: ./downloads   # Directory for downloaded files
 file_type: application/octet-stream # MIME type for downloads
 timeout: 30                       # Default timeout in seconds
 retry_attempts: 3                 # Number of retry attempts for browser startup
 window_size: "1920,1080"         # Browser window size (width,height)
-use_user_data_dir: true
+use_user_data_dir: false          # Disabled by default to avoid conflicts (especially in CI)
 
 # Test Configuration
 test_timeout: 60                  # Test timeout in seconds
 implicit_wait: 10                 # Implicit wait time in seconds
-explicit_wait: 10                 # Implicit wait time in seconds
-page_load_timeout: 60            # Increased page load timeout in seconds
+explicit_wait: 10                 # Explicit wait time in seconds
+page_load_timeout: 60            # Page load timeout in seconds
 
 # Logging Configuration
 log_level: INFO                   # Options: DEBUG, INFO, WARNING, ERROR
