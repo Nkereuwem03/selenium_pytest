@@ -141,7 +141,6 @@ def find_element(driver: WebDriver, locator: tuple, data):
 def test_fixed_deposit_calculator(setup_teardown):
     """Orchestrates the data-driven test for the fixed deposit calculator."""
     all_test_data = get_test_data()
-    print(all_test_data)
     if len(all_test_data) == 0:
         logger.warning("No test data found in the database.")
         pytest.fail("No test data available.")
@@ -203,8 +202,6 @@ def test_fixed_deposit_calculator(setup_teardown):
 
                 actual_value = float(result_elem.text.replace("Lakh", ""))
                 expected_value = float(test_case["maturity_amount_lakh"])
-
-                print(actual_value, expected_value)
 
                 if round(actual_value, 1) == round(expected_value, 1):
                     results.append({"id": row_id, "status": "pass"})
