@@ -19,6 +19,8 @@ import os
 import dotenv
 from utils.wait_helper import wait_for_element_presence
 import pytest
+from selenium.webdriver.remote.webdriver import WebDriver
+from openpyxl.styles import PatternFill
 
 dotenv.load_dotenv()
 
@@ -38,28 +40,36 @@ for key, value in DB_CONFIG.items():
 DB_OPERATIONS = {
     "CREATE_TABLE": """
         CREATE TABLE IF NOT EXISTS fixed_deposits (
-            id INT AUTO_INCREMENT PRIMARY KEY,
-            Principal INT(100) NOT NULL,
-            RateOfInterest DECIMAL(5, 2) NOT NULL,
-            Period INT NOT NULL,
-            PeriodUnit VARCHAR(20) NOT NULL,
-            Frequency VARCHAR(50) NOT NULL,
-            MaturityValue DECIMAL(12, 2) NOT NULL,
-            Expected VARCHAR(10) NOT NULL,
-            Result VARCHAR(10) NOT NULL
+            id INT PRIMARY KEY AUTO_INCREMENT,
+            fd_amount_rs INT NOT NULL,
+            fd_period_value INT NOT NULL,
+            fd_period_unit VARCHAR(10), 
+            interest_rate DECIMAL(5, 2) NOT NULL, 
+            compounding_frequency VARCHAR(20) NOT NULL, 
+            maturity_amount_lakh DECIMAL(10, 1) NOT NULL, 
+            expected_result VARCHAR(10) NOT NULL, 
+            actual_result VARCHAR(10) 
         );
     """,
     "INSERT": """
-        INSERT INTO fixed_deposits (Principal, RateOfInterest, Period, PeriodUnit, Frequency, MaturityValue, Expected, Result)
-        VALUES
-        (20000, 10.00, 2, 'year(s)', 'Simple Interest', 24000.00, 'pass', ''),
-        (40000, 15.00, 5, 'year(s)', 'Simple Interest', 70000.00, 'pass', ''),
-        (50000, 10.00, 3, 'month(s)', 'Simple Interest', 51250.00, 'pass', ''),
-        (75000, 12.00, 2, 'month(s)', 'Simple Interest', 76500.00, 'pass', ''),
-        (75000, 12.00, 2, 'day(s)', 'Simple Interest', 75045.32, 'fail', '');
+        INSERT INTO fixed_deposits (
+            fd_amount_rs,
+            fd_period_value,
+            fd_period_unit,
+            interest_rate,
+            compounding_frequency,
+            maturity_amount_lakh,
+            expected_result,
+            actual_result) 
+            VALUES
+            (20000, 2, 'years', 10.00, 'Monthly', 0.2, 'pass', NULL),
+            (40000, 5, 'years', 15.00, 'Quarterly', 0.8, 'pass', NULL),
+            (50000, 3, 'months', 10.00, 'Half Yearly', 0.6, 'pass', NULL),
+            (75000, 2, 'months', 12.00, 'Yearly', 0.9, 'pass', NULL),
+            (85000, 2, 'days', 12.00, 'Yearly', 2.1, 'fail', NULL);
     """,
-    "UPDATE_PASS": "UPDATE fixed_deposits SET Result='pass' WHERE id = %s",
-    "UPDATE_FAIL": "UPDATE fixed_deposits SET Result='fail' WHERE id = %s",
+    "UPDATE_PASS": "UPDATE fixed_deposits SET actual_result='pass' WHERE id = %s",
+    "UPDATE_FAIL": "UPDATE fixed_deposits SET actual_result='fail' WHERE id = %s",
     "SELECT": "SELECT * FROM fixed_deposits",
 }
 
@@ -121,31 +131,31 @@ def update_results_in_db(results: list[dict]):
         logger.error(f"Database error while updating results: {e}")
 
 
-def fill_form(driver, tag, tag_name, data):
-    driver.find_element(tag, tag_name).clear()
-    driver.find_element(tag, tag_name).send_keys(data)
+def find_element(driver: WebDriver, locator: tuple, data):
+    element = wait_for_element_presence(driver, locator)
+    element.clear()
+    element.send_keys(data)
 
 
-# @pytest.mark.skipif(not init_db(), reason="Database init failed")
-@pytest.mark.skip(reason="site not ready")
+@pytest.mark.smoke
 def test_fixed_deposit_calculator(setup_teardown):
     """Orchestrates the data-driven test for the fixed deposit calculator."""
     all_test_data = get_test_data()
+    print(all_test_data)
     if len(all_test_data) == 0:
         logger.warning("No test data found in the database.")
         pytest.fail("No test data available.")
 
     driver = setup_teardown
     results = []
+
     try:
-        driver.get(
-            "https://www.moneycontrol.com/fixed-income/calculator/state-bank-of-india/fixed-deposit-calculator-SBI-BSB001.html"
-        )
+        driver.get("https://fd-calculator.in/result")
         for test_case in all_test_data:
             if any(
                 value is None or (isinstance(value, str) and value.strip() == "")
                 for key, value in test_case.items()
-                if key != "id"
+                if key not in ["id", "actual_result"]
             ):
                 logger.warning(
                     f"Skipping case {test_case['id']} due to blank/None fields."
@@ -160,38 +170,45 @@ def test_fixed_deposit_calculator(setup_teardown):
 
             row_id = test_case["id"]
             try:
-                fill_form(driver, By.CSS_SELECTOR, "#principal", test_case["Principal"])
-                fill_form(
+                find_element(
                     driver,
-                    By.CSS_SELECTOR,
-                    "#interest",
-                    str(test_case["RateOfInterest"]),
+                    (By.CSS_SELECTOR, "#amountInputField"),
+                    str(test_case["fd_amount_rs"]),
                 )
-                fill_form(driver, By.CSS_SELECTOR, "#tenure", test_case["Period"])
+                find_element(
+                    driver,
+                    (By.CSS_SELECTOR, "#periodInputField"),
+                    str(test_case["fd_period_value"]),
+                )
                 Select(
-                    driver.find_element(By.ID, "tenurePeriod")
-                ).select_by_visible_text(str(test_case["PeriodUnit"]))
-                Select(driver.find_element(By.ID, "frequency")).select_by_visible_text(
-                    str(test_case["Frequency"])
+                    driver.find_element(By.ID, "amountSelectField")
+                ).select_by_visible_text(str(test_case["fd_period_unit"]).strip())
+
+                find_element(
+                    driver,
+                    (By.CSS_SELECTOR, "#interestInputField"),
+                    str(test_case["interest_rate"]),
                 )
-                calc_btn = driver.find_element(
-                    By.XPATH, "//div[@class='cal_div']//a[1]/img"
-                )
+
+                Select(
+                    driver.find_element(By.ID, "frequencySelectField")
+                ).select_by_visible_text(test_case["compounding_frequency"])
+
+                calc_btn = driver.find_element(By.ID, "calculateButton")
                 driver.execute_script("arguments[0].click();", calc_btn)
 
                 result_elem = wait_for_element_presence(
-                    driver, (By.CSS_SELECTOR, "#resp_matval strong")
+                    driver, (By.CSS_SELECTOR, "#futureValue")
                 )
-                actual_value = float(result_elem.text.replace(",", ""))
-                expected_value = float(test_case["MaturityValue"])
 
-                if round(actual_value, 2) == round(expected_value, 2):
-                    logger.info(f"[ID: {row_id}] Test Passed")
+                actual_value = float(result_elem.text.replace("Lakh", ""))
+                expected_value = float(test_case["maturity_amount_lakh"])
+
+                print(actual_value, expected_value)
+
+                if round(actual_value, 1) == round(expected_value, 1):
                     results.append({"id": row_id, "status": "pass"})
                 else:
-                    logger.warning(
-                        f"[ID: {row_id}] Test Failed. Expected: {expected_value}, Actual: {actual_value}"
-                    )
                     results.append({"id": row_id, "status": "fail"})
 
             except (NoSuchElementException, TimeoutException, ValueError) as e:
