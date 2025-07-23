@@ -4,7 +4,10 @@ import yaml
 import tempfile
 import os
 import shutil
-import psutil  # For killing leftover processes
+import psutil
+import time
+import uuid
+from pathlib import Path
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options as ChromeOptions
 from selenium.webdriver.firefox.options import Options as FirefoxOptions
@@ -29,9 +32,14 @@ class BrowserManager:
         self.user_data_dir = None
         self.use_user_data_dir = config.get("use_user_data_dir", True)
 
-        # Disable user data dir in CI environments
-        if os.environ.get("CI") == "true":
+        # Always disable user data dir in CI environments or when running tests
+        if (
+            os.environ.get("CI") == "true"
+            or os.environ.get("GITHUB_ACTIONS") == "true"
+            or "pytest" in os.environ.get("_", "")
+        ):
             self.use_user_data_dir = False
+            logger.info("Detected CI environment or pytest - disabling user data dir")
 
         logger.info(f"use_user_data_dir = {self.use_user_data_dir}")
 
@@ -47,101 +55,198 @@ class BrowserManager:
         if not os.path.exists(self.download_dir):
             os.makedirs(self.download_dir)
 
+    def _cleanup_chrome_processes(self):
+        """Kill any existing Chrome/ChromeDriver processes."""
+        processes_killed = 0
+        for proc in psutil.process_iter(["pid", "name", "cmdline"]):
+            try:
+                if proc.info["name"] and any(
+                    name in proc.info["name"].lower()
+                    for name in ["chrome", "chromedriver"]
+                ):
+                    proc.kill()
+                    processes_killed += 1
+                    logger.info(
+                        f"Killed process: {proc.info['name']} (PID: {proc.info['pid']})"
+                    )
+            except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
+                pass
+
+        if processes_killed > 0:
+            time.sleep(2)  # Give processes time to die
+            logger.info(f"Killed {processes_killed} Chrome-related processes")
+
+    def _cleanup_temp_directories(self):
+        """Clean up any existing Chrome user data directories."""
+        temp_patterns = [
+            "/tmp/chrome_user_data_*",
+            "/tmp/.org.chromium.*",
+            "/tmp/scoped_dir*",
+            os.path.expanduser("~/tmp/chrome_user_data_*"),
+        ]
+
+        cleaned = 0
+        for pattern in temp_patterns:
+            import glob
+
+            for path in glob.glob(pattern):
+                try:
+                    if os.path.isdir(path):
+                        shutil.rmtree(path, ignore_errors=True)
+                        cleaned += 1
+                        logger.info(f"Cleaned temp directory: {path}")
+                except Exception as e:
+                    logger.warning(f"Failed to clean {path}: {e}")
+
+        if cleaned > 0:
+            logger.info(f"Cleaned {cleaned} temporary directories")
+
+    def _create_unique_user_data_dir(self):
+        """Create a unique user data directory with proper permissions."""
+        if not self.use_user_data_dir:
+            return None
+
+        # Use a more unique identifier
+        unique_id = f"{uuid.uuid4().hex[:8]}_{os.getpid()}_{int(time.time())}"
+        temp_base = os.environ.get("TMPDIR", "/tmp")
+        user_data_dir = os.path.join(temp_base, f"chrome_user_data_{unique_id}")
+
+        try:
+            os.makedirs(user_data_dir, mode=0o755, exist_ok=False)
+            logger.info(f"Created unique user data dir: {user_data_dir}")
+            return user_data_dir
+        except OSError as e:
+            logger.warning(f"Failed to create user data dir {user_data_dir}: {e}")
+            return None
+
+    def _get_chrome_options(self):
+        """Get Chrome options with proper configuration."""
+        options = ChromeOptions()
+
+        # Download preferences
+        prefs = {
+            "download.default_directory": self.download_dir,
+            "profile.default_content_settings.popups": 0,
+            "directory_upgrade": True,
+            "profile.default_content_setting_values.notifications": 2,
+            "profile.managed_default_content_settings.images": 2,
+        }
+        options.add_experimental_option("prefs", prefs)
+
+        # User data directory handling
+        if self.use_user_data_dir:
+            self.user_data_dir = self._create_unique_user_data_dir()
+            if self.user_data_dir:
+                options.add_argument(f"--user-data-dir={self.user_data_dir}")
+            else:
+                logger.warning("Failed to create user data dir, proceeding without it")
+                self.use_user_data_dir = False
+
+        # Essential Chrome arguments to prevent conflicts
+        essential_args = [
+            "--no-sandbox",
+            "--disable-dev-shm-usage",
+            "--disable-gpu",
+            "--disable-extensions",
+            "--disable-plugins",
+            "--disable-background-networking",
+            "--disable-background-timer-throttling",
+            "--disable-renderer-backgrounding",
+            "--disable-backgrounding-occluded-windows",
+            "--disable-client-side-phishing-detection",
+            "--disable-crash-reporter",
+            "--disable-oopr-debug-crash-dump",
+            "--no-crash-upload",
+            "--disable-low-res-tiling",
+            "--disable-popup-blocking",
+            "--disable-infobars",
+            "--disable-notifications",
+            "--disable-web-security",
+            "--allow-running-insecure-content",
+            "--ignore-certificate-errors",
+            "--ignore-ssl-errors",
+            "--ignore-certificate-errors-spki-list",
+            "--disable-blink-features=AutomationControlled",
+            "--disable-features=VizDisplayCompositor",
+            "--disable-ipc-flooding-protection",
+            "--single-process",  # This can help avoid some multi-process issues
+            "--no-zygote",  # Disable zygote process
+        ]
+
+        for arg in essential_args:
+            options.add_argument(arg)
+
+        # Headless specific configuration
+        if self.headless:
+            headless_args = [
+                "--headless=new",
+                "--disable-setuid-sandbox",
+                "--disable-software-rasterizer",
+                "--disable-images",
+                "--disable-javascript",
+                "--window-size=1920,1080",
+                "--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                "--enable-logging",
+                "--log-level=0",
+                "--enable-features=NetworkService,NetworkServiceInProcess",
+            ]
+            for arg in headless_args:
+                options.add_argument(arg)
+
+        # Experimental options
+        options.add_experimental_option("excludeSwitches", ["enable-automation"])
+        options.add_experimental_option("useAutomationExtension", False)
+
+        return options
+
     def start_browser(self):
-        """Initializes the WebDriver based on the specified browser with retry logic."""
+        """Initializes the WebDriver based on the specified browser with enhanced retry logic."""
         retries = config.get("retry_attempts", 3)
+
+        # Pre-cleanup before starting
+        self._cleanup_chrome_processes()
+        self._cleanup_temp_directories()
 
         for attempt in range(retries):
             try:
                 if self.browser_name == "chrome":
-                    options = ChromeOptions()
-                    prefs = {
-                        "download.default_directory": self.download_dir,
-                        "profile.default_content_settings.popups": 0,
-                        "directory_upgrade": True,
-                        "profile.default_content_setting_values.notifications": 2,
-                        "profile.managed_default_content_settings.images": 2,
-                    }
-                    options.add_experimental_option("prefs", prefs)
+                    options = self._get_chrome_options()
 
-                    if self.use_user_data_dir:
-                        self.user_data_dir = tempfile.mkdtemp(
-                            prefix="chrome_user_data_"
-                        )
-                        logger.info(
-                            f"Using temporary user data dir: {self.user_data_dir}"
-                        )
-                        options.add_argument(f"--user-data-dir={self.user_data_dir}")
-
-                    if self.headless:
-                        options.add_argument("--headless=new")
-                        options.add_argument("--no-sandbox")
-                        options.add_argument("--disable-dev-shm-usage")
-                        options.add_argument("--disable-gpu")
-                        options.add_argument("--disable-setuid-sandbox")
-                        options.add_argument("--disable-software-rasterizer")
-                        options.add_argument("--disable-background-networking")
-                        options.add_argument("--disable-background-timer-throttling")
-                        options.add_argument("--disable-renderer-backgrounding")
-                        options.add_argument("--disable-backgrounding-occluded-windows")
-                        options.add_argument("--disable-client-side-phishing-detection")
-                        options.add_argument("--disable-crash-reporter")
-                        options.add_argument("--disable-oopr-debug-crash-dump")
-                        options.add_argument("--no-crash-upload")
-                        options.add_argument("--disable-low-res-tiling")
-                        options.add_argument("--window-size=1920,1080")
-                        options.add_argument("--disable-images")
-                        options.add_argument("--disable-javascript")
-                        options.add_argument(
-                            "--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-                        )
-                        options.add_argument("--disable-extensions")
-                        options.add_argument("--disable-plugins")
-                        options.add_argument("--enable-logging")
-                        options.add_argument("--log-level=0")
-                        options.add_argument(
-                            "--enable-features=NetworkService,NetworkServiceInProcess"
-                        )
-
-                    options.add_argument("--disable-popup-blocking")
-                    options.add_argument("--disable-infobars")
-                    options.add_argument("--disable-notifications")
-                    options.add_argument("--disable-web-security")
-                    options.add_argument("--allow-running-insecure-content")
-                    options.add_argument("--ignore-certificate-errors")
-                    options.add_argument("--ignore-ssl-errors")
-                    options.add_argument("--ignore-certificate-errors-spki-list")
-                    options.add_experimental_option(
-                        "excludeSwitches", ["enable-automation"]
-                    )
-                    options.add_experimental_option("useAutomationExtension", False)
-                    options.add_argument(
-                        "--disable-blink-features=AutomationControlled"
-                    )
+                    # Additional cleanup between attempts
+                    if attempt > 0:
+                        time.sleep(2)
+                        self._cleanup_chrome_processes()
 
                     self.driver = webdriver.Chrome(options=options)
+
+                    # Configure timeouts
                     self.driver.implicitly_wait(config.get("implicit_wait", 10))
                     self.driver.set_page_load_timeout(
                         config.get("page_load_timeout", 60)
                     )
                     self.driver.set_script_timeout(30)
-                    self.driver.maximize_window()
+
+                    if not self.headless:
+                        self.driver.maximize_window()
 
                 elif self.browser_name == "firefox":
                     options = FirefoxOptions()
                     file_type = config.get("file_type", "application/octet-stream")
-                    options.set_preference("browser.download.folderList", 2)
-                    options.set_preference("browser.download.dir", self.download_dir)
-                    options.set_preference(
-                        "browser.download.manager.showWhenStarting", False
-                    )
-                    options.set_preference(
-                        "browser.helperApps.neverAsk.saveToDisk", file_type
-                    )
-                    options.set_preference("dom.webnotifications.enabled", False)
-                    options.set_preference("dom.push.enabled", False)
-                    options.set_preference("permissions.default.image", 2)
-                    options.set_preference("javascript.enabled", False)
+
+                    # Firefox preferences
+                    firefox_prefs = {
+                        "browser.download.folderList": 2,
+                        "browser.download.dir": self.download_dir,
+                        "browser.download.manager.showWhenStarting": False,
+                        "browser.helperApps.neverAsk.saveToDisk": file_type,
+                        "dom.webnotifications.enabled": False,
+                        "dom.push.enabled": False,
+                        "permissions.default.image": 2,
+                        "javascript.enabled": False,
+                    }
+
+                    for pref, value in firefox_prefs.items():
+                        options.set_preference(pref, value)
 
                     if self.headless:
                         options.add_argument("-headless")
@@ -152,7 +257,9 @@ class BrowserManager:
                         config.get("page_load_timeout", 60)
                     )
                     self.driver.set_script_timeout(30)
-                    self.driver.maximize_window()
+
+                    if not self.headless:
+                        self.driver.maximize_window()
 
                 logger.info(
                     f"Browser {self.browser_name} started successfully on attempt {attempt + 1}"
@@ -161,6 +268,8 @@ class BrowserManager:
 
             except Exception as e:
                 logger.warning(f"Attempt {attempt + 1} failed to start browser: {e}")
+
+                # Cleanup after failed attempt
                 if self.user_data_dir and os.path.exists(self.user_data_dir):
                     try:
                         shutil.rmtree(self.user_data_dir, ignore_errors=True)
@@ -172,36 +281,37 @@ class BrowserManager:
                             f"Failed to clean user data dir: {cleanup_error}"
                         )
                     self.user_data_dir = None
+
+                # Additional cleanup between attempts
+                self._cleanup_chrome_processes()
+
                 if attempt == retries - 1:
                     logger.error(f"Failed to start browser after {retries} attempts")
                     raise
+
+                # Wait before retry
+                time.sleep(2**attempt)  # Exponential backoff
+
         return None
 
     def quit_browser(self):
-        """Closes the WebDriver instance and cleans up user data directory."""
+        """Closes the WebDriver instance and cleans up resources."""
         if self.driver:
             try:
                 self.driver.quit()
                 logger.info("Browser session ended successfully")
             except Exception as e:
                 logger.warning(f"Error quitting browser: {e}")
-            self.driver = None
+            finally:
+                self.driver = None
 
-        # Kill leftover Chrome processes
-        for proc in psutil.process_iter(["pid", "name"]):
-            if proc.info["name"] and (
-                "chrome" in proc.info["name"].lower()
-                or "chromedriver" in proc.info["name"].lower()
-            ):
-                try:
-                    proc.kill()
-                    logger.info(
-                        f"Killed leftover process: {proc.info['name']} (PID: {proc.info['pid']})"
-                    )
-                except Exception as e:
-                    logger.warning(f"Failed to kill process {proc.info['name']}: {e}")
+        # Give browser time to shut down properly
+        time.sleep(1)
 
-        # Cleanup user data directory
+        # Clean up processes
+        self._cleanup_chrome_processes()
+
+        # Clean up user data directory
         if self.user_data_dir and os.path.exists(self.user_data_dir):
             try:
                 shutil.rmtree(self.user_data_dir, ignore_errors=True)
@@ -210,4 +320,5 @@ class BrowserManager:
                 logger.warning(
                     f"Failed to clean up user data directory {self.user_data_dir}: {e}"
                 )
-            self.user_data_dir = None
+            finally:
+                self.user_data_dir = None
