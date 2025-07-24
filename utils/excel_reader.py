@@ -51,7 +51,7 @@ def read_data(file, sheet_name, row_num, col_num):
         any: The value from the specified cell.
     """
     workbook = openpyxl.load_workbook(file)
-    sheet = workbook[sheet_name]    
+    sheet = workbook[sheet_name]
     data = sheet.cell(row_num, col_num).value
     return data
 
