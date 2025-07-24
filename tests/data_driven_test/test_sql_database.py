@@ -137,7 +137,6 @@ def find_element(driver: WebDriver, locator: tuple, data):
     element.send_keys(data)
 
 
-@pytest.mark.smoke
 def test_fixed_deposit_calculator(setup_teardown):
     """Orchestrates the data-driven test for the fixed deposit calculator."""
     all_test_data = get_test_data()
