@@ -127,6 +127,7 @@ def test_nested_iframe(setup_teardown):
         logger.error(f"Test failed due to: {type(e).__name__}: {e}")
         pytest.fail(f"Test failed due to: {type(e).__name__}: {e}")
 
+
 @pytest.mark.smoke
 def test_handle_browser_windows(setup_teardown):
     driver = setup_teardown
