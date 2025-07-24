@@ -165,7 +165,7 @@ def test_scrolling_1(setup_teardown):
         pytest.fail(f"Test failed due to: {type(e).__name__}: {e}")
 
 
-@pytest.mark.skip(reason="site not ready")
+@pytest.mark.smoke
 def test_scrolling_2(setup_teardown):
     """Scroll into view on a particular element"""
     driver = setup_teardown
@@ -191,7 +191,6 @@ def test_scrolling_2(setup_teardown):
         pytest.fail(f"Test failed due to: {type(e).__name__}: {e}")
 
 
-@pytest.mark.skip(reason="site not ready")
 def test_scrolling_3(setup_teardown):
     """Scroll to the vertical end of window and back to top"""
 
