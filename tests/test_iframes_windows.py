@@ -128,8 +128,6 @@ def test_nested_iframe(setup_teardown):
         pytest.fail(f"Test failed due to: {type(e).__name__}: {e}")
 
 
-@pytest.mark.alert
-@pytest.mark.skip("Skipping test_handle_browser_windows as url is not responding")
 def test_handle_browser_windows(setup_teardown):
     driver = setup_teardown
     try:
