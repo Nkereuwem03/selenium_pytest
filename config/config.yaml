@@ -1,24 +1,24 @@
 # Selenium Test Configuration
-browser: chrome                    # Options: chrome, firefox
-headless: true                    # Run browser in headless mode (will be overridden in CI)
-download_directory: ./downloads   # Directory for downloaded files
-file_type: application/octet-stream # MIME type for downloads
-timeout: 30                       # Default timeout in seconds
-retry_attempts: 3                 # Number of retry attempts for browser startup
-window_size: "1920,1080"         # Browser window size (width,height)
+browser: chrome                    
+headless: true                    
+download_directory: ./downloads  
+file_type: application/octet-stream 
+timeout: 30                     
+retry_attempts: 3                 
+window_size: "1920,1080"      
 use_user_data_dir: false          # Disabled by default to avoid conflicts (especially in CI)
 
 # Test Configuration
-test_timeout: 60                  # Test timeout in seconds
-implicit_wait: 10                 # Implicit wait time in seconds
-explicit_wait: 10                 # Explicit wait time in seconds
-page_load_timeout: 60            # Page load timeout in seconds
+test_timeout: 60           
+implicit_wait: 10                 
+explicit_wait: 10                 
+page_load_timeout: 60       
 
 # Logging Configuration
 log_level: INFO                   # Options: DEBUG, INFO, WARNING, ERROR
-log_file: logs/test.log          # Log file path
+log_file: logs/test.log         
 
-base_url: https://www.moneycontrol.com/fixed-income/calculator/state-bank-of-india/fixed-deposit-calculator-SBI-BSB001.html
+base_url: 'https://www.google.com/'
 
 excel_data_file: data/excel_data.xlsx
 excel_data_sheet: Sheet3
