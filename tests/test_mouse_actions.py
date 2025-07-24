@@ -170,7 +170,9 @@ def test_scrolling_1(setup_teardown):
         pytest.fail(f"Test failed due to: {type(e).__name__}: {e}")
 
 
-@pytest.mark.skip(reason="Timeout: Element not present within 10s: ('xpath', '//td[normalize-space()='Nigeria']')")
+@pytest.mark.skip(
+    reason="Timeout: Element not present within 10s: ('xpath', '//td[normalize-space()='Nigeria']')"
+)
 def test_scrolling_2(setup_teardown):
     """Scroll into view on a particular element"""
     driver = setup_teardown
