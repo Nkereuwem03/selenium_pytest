@@ -156,12 +156,10 @@ def test_handle_browser_windows(setup_teardown):
         assert "OrangeHRM" in driver.title
         driver.find_element(By.XPATH, "//a[normalize-space()='Pricing']").click()
 
-        print(driver.title)
         # assert (
         #     driver.title
         #     == "Human Resources Management Software | OrangeHRM HR Software"
         # )
-        # assert driver.title == "HRMS Software Pricing | OrangeHRM HR Software"
 
         driver.close()
         driver.switch_to.window(original_window)
