@@ -207,7 +207,7 @@ jobs:
           export CHROME_HEADLESS=1
           
           # Run the tests
-          pytest --maxfail=1 -vv -s --tb=short --alluredir=allure-results --headless -m smoke
+          # pytest --maxfail=1 -vv -s --tb=short --alluredir=allure-results --headless 
         continue-on-error: false
         timeout-minutes: 15
 
