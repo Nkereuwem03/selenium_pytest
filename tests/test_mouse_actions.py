@@ -165,7 +165,6 @@ def test_scrolling_1(setup_teardown):
         pytest.fail(f"Test failed due to: {type(e).__name__}: {e}")
 
 
-@pytest.mark.smoke
 def test_scrolling_2(setup_teardown):
     """Scroll into view on a particular element"""
     driver = setup_teardown
