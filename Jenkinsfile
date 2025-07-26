@@ -1,10 +1,5 @@
 pipeline {
-    agent {
-        docker {
-            image 'python:3.10'
-            args '-u root:root'
-        }
-    }
+    agent any  // Using any Jenkins agent instead of a Docker container
 
     environment {
         DATABASE_HOST = '127.0.0.1'
@@ -18,47 +13,52 @@ pipeline {
 
     options {
         timestamps()
-        ansiColor('xterm')
         buildDiscarder(logRotator(numToKeepStr: '10'))
     }
 
     stages {
-        stage('Checkout') {
+        stage('Prepare Environment') {
             steps {
-                checkout scm
-            }
-        }
-
-        stage('Install Dependencies') {
-            steps {
-                sh '''
-                    python -m pip install --upgrade pip
-                    pip install -r requirements.txt
-                '''
+                ansiColor('xterm') {
+                    sh '''
+                        echo "Updating pip and installing dependencies"
+                        python3 -m pip install --upgrade pip
+                        pip3 install -r requirements.txt
+                    '''
+                }
             }
         }
 
         stage('Start MySQL') {
             steps {
-                sh '''
-                    docker run --name test-mysql -e MYSQL_ROOT_PASSWORD=${DATABASE_PASSWORD} -e MYSQL_DATABASE=${DATABASE_NAME} -p ${DATABASE_PORT}:3306 -d mysql:latest
-                    for i in {1..30}; do
-                        if docker exec test-mysql mysqladmin ping -uroot -p${DATABASE_PASSWORD} --silent; then
-                            break
-                        fi
-                        sleep 2
-                    done
-                    docker cp init.sql test-mysql:/init.sql
-                    docker exec test-mysql bash -c "mysql -uroot -p${DATABASE_PASSWORD} ${DATABASE_NAME} < /init.sql"
-                '''
+                ansiColor('xterm') {
+                    sh '''
+                        docker run --name test-mysql -e MYSQL_ROOT_PASSWORD=${DATABASE_PASSWORD} -e MYSQL_DATABASE=${DATABASE_NAME} -p ${DATABASE_PORT}:3306 -d mysql:latest
+
+                        echo "Waiting for MySQL to be ready..."
+                        for i in {1..30}; do
+                            if docker exec test-mysql mysqladmin ping -uroot -p${DATABASE_PASSWORD} --silent; then
+                                break
+                            fi
+                            sleep 2
+                        done
+
+                        docker cp init.sql test-mysql:/init.sql
+                        docker exec test-mysql bash -c "mysql -uroot -p${DATABASE_PASSWORD} ${DATABASE_NAME} < /init.sql"
+                    '''
+                }
             }
         }
 
         stage('Run Tests') {
             steps {
-                sh '''
-                    pytest --maxfail=1 --disable-warnings --alluredir=${ALLURE_RESULTS} --html=${REPORTS_DIR}/report.html --self-contained-html
-                '''
+                ansiColor('xterm') {
+                    sh '''
+                        pytest --maxfail=1 --disable-warnings \
+                               --alluredir=${ALLURE_RESULTS} \
+                               --html=${REPORTS_DIR}/report.html --self-contained-html
+                    '''
+                }
             }
             post {
                 always {
