@@ -129,15 +129,15 @@ pipeline {
                     if [ ! -f requirements.txt ]; then
                         echo "requirements.txt not found! Creating basic requirements..."
                         cat > requirements.txt << 'EOF'
-selenium>=4.0.0
-pytest>=7.0.0
-pytest-html>=3.0.0
-allure-pytest>=2.9.0
-mysql-connector-python>=9.3.0
-pymysql>=1.0.0
-python-dotenv>=0.19.0
-webdriver-manager>=3.8.0
-EOF
+                        selenium>=4.0.0
+                        pytest>=7.0.0
+                        pytest-html>=3.0.0
+                        allure-pytest>=2.9.0
+                        mysql-connector-python>=9.3.0
+                        pymysql>=1.0.0
+                        python-dotenv>=0.19.0
+                        webdriver-manager>=3.8.0
+                        EOF
                     fi
                     
                     # Install requirements
@@ -183,33 +183,57 @@ EOF
             }
         }
 
-        stage('Setup MySQL') {
+        stage('Setup MySQL Alternative') {
             steps {
                 script {
+                    // Try Docker first, fallback to direct MySQL installation
                     try {
                         sh '''
-                            echo "=== MySQL Docker Setup ==="
+                            # Try Docker approach
+                            docker --version
+                            docker ps
                             
-                            # Stop and remove any existing MySQL containers
-                            docker stop test-mysql 2>/dev/null || true
-                            docker rm test-mysql 2>/dev/null || true
+                            # Stop any existing MySQL containers
+                            docker stop mysql-test || true
+                            docker rm mysql-test || true
                             
-                            # Start MySQL container
-                            docker run --name test-mysql \
-                                -e MYSQL_ROOT_PASSWORD=${DATABASE_PASSWORD} \
-                                -e MYSQL_DATABASE=${DATABASE_NAME} \
-                                -p ${DATABASE_PORT}:3306 \
+                            # Start new MySQL container
+                            docker run -d \
+                                --name mysql-test \
+                                -e MYSQL_ROOT_PASSWORD=${env.DATABASE_PASSWORD} \
+                                -e MYSQL_DATABASE=test_data \
+                                -p 3306:3306 \
                                 --health-cmd="mysqladmin ping --silent" \
                                 --health-interval=10s \
                                 --health-timeout=5s \
-                                --health-retries=5 \
-                                -d mysql:8.0
-                            
-                            echo "MySQL container started"
+                                --health-retries=3 \
+                                mysql:latest
+                                
+                            echo "MySQL container started successfully"
                         '''
                     } catch (Exception e) {
-                        echo "Docker MySQL setup failed: ${e.message}"
-                        error("MySQL setup is required for this pipeline")
+                        echo "Docker approach failed: ${e.message}"
+                        echo "Trying direct MySQL installation..."
+                        
+                        sh '''
+                            # Fallback: Install MySQL directly (without sudo if not available)
+                            echo "=== MySQL Fallback Installation ==="
+                            
+                            # Check if MySQL is already running
+                            if pgrep mysqld > /dev/null; then
+                                echo "MySQL is already running"
+                                exit 0
+                            fi
+                            
+                            # Try to install MySQL without sudo first
+                            if command -v mysql >/dev/null 2>&1; then
+                                echo "MySQL client already available"
+                            else
+                                echo "MySQL not available. This pipeline requires MySQL."
+                                echo "Please ensure Docker is available or MySQL is pre-installed."
+                                exit 1
+                            fi
+                        '''
                     }
                 }
             }
@@ -220,7 +244,7 @@ EOF
                 sh '''
                     echo "=== Waiting for MySQL to be ready ==="
                     for i in $(seq 1 60); do
-                        if docker exec test-mysql mysqladmin ping -uroot -p${DATABASE_PASSWORD} --silent 2>/dev/null; then
+                        if docker exec test-mysql mysqladmin ping -uroot -p${env.DATABASE_PASSWORD} --silent 2>/dev/null; then
                             echo "MySQL is ready!"
                             break
                         fi
@@ -229,7 +253,7 @@ EOF
                     done
                     
                     # Verify MySQL is actually ready
-                    docker exec test-mysql mysqladmin ping -uroot -p${DATABASE_PASSWORD} --silent || {
+                    docker exec test-mysql mysqladmin ping -uroot -p${env.DATABASE_PASSWORD} --silent || {
                         echo "MySQL failed to start properly"
                         exit 1
                     }
@@ -246,36 +270,36 @@ EOF
                     if [ ! -f init.sql ]; then 
                         echo "Creating sample database schema..."
                         cat > init.sql << 'EOF'
-CREATE DATABASE IF NOT EXISTS test_data;
-USE test_data;
+                        CREATE DATABASE IF NOT EXISTS test_data;
+                        USE test_data;
 
-CREATE TABLE IF NOT EXISTS fixed_deposits (
-    id INT PRIMARY KEY AUTO_INCREMENT,
-    fd_amount_rs INT NOT NULL,
-    fd_period_value INT NOT NULL,
-    fd_period_unit VARCHAR(10), 
-    interest_rate DECIMAL(5, 2) NOT NULL, 
-    compounding_frequency VARCHAR(20) NOT NULL, 
-    maturity_amount_lakh DECIMAL(10, 1) NOT NULL, 
-    expected_result VARCHAR(10) NOT NULL, 
-    actual_result VARCHAR(10) 
-);
+                        CREATE TABLE IF NOT EXISTS fixed_deposits (
+                            id INT PRIMARY KEY AUTO_INCREMENT,
+                            fd_amount_rs INT NOT NULL,
+                            fd_period_value INT NOT NULL,
+                            fd_period_unit VARCHAR(10), 
+                            interest_rate DECIMAL(5, 2) NOT NULL, 
+                            compounding_frequency VARCHAR(20) NOT NULL, 
+                            maturity_amount_lakh DECIMAL(10, 1) NOT NULL, 
+                            expected_result VARCHAR(10) NOT NULL, 
+                            actual_result VARCHAR(10) 
+                        );
 
-INSERT INTO fixed_deposits (
-    fd_amount_rs, fd_period_value, fd_period_unit, interest_rate,
-    compounding_frequency, maturity_amount_lakh, expected_result, actual_result
-) VALUES
-(20000, 2, 'years', 10.00, 'Monthly', 0.2, 'pass', NULL),
-(40000, 5, 'years', 15.00, 'Quarterly', 0.8, 'pass', NULL),
-(50000, 3, 'months', 10.00, 'Half Yearly', 0.6, 'pass', NULL),
-(75000, 2, 'months', 12.00, 'Yearly', 0.9, 'pass', NULL),
-(85000, 2, 'days', 12.00, 'Yearly', 2.1, 'fail', NULL);
-EOF
+                        INSERT INTO fixed_deposits (
+                            fd_amount_rs, fd_period_value, fd_period_unit, interest_rate,
+                            compounding_frequency, maturity_amount_lakh, expected_result, actual_result
+                        ) VALUES
+                        (20000, 2, 'years', 10.00, 'Monthly', 0.2, 'pass', NULL),
+                        (40000, 5, 'years', 15.00, 'Quarterly', 0.8, 'pass', NULL),
+                        (50000, 3, 'months', 10.00, 'Half Yearly', 0.6, 'pass', NULL),
+                        (75000, 2, 'months', 12.00, 'Yearly', 0.9, 'pass', NULL),
+                        (85000, 2, 'days', 12.00, 'Yearly', 2.1, 'fail', NULL);
+                        EOF
                     fi
                     
                     # Initialize database
                     docker cp init.sql test-mysql:/init.sql
-                    docker exec test-mysql bash -c "mysql -uroot -p${DATABASE_PASSWORD} < /init.sql"
+                    docker exec test-mysql bash -c "mysql -uroot -p${env.DATABASE_PASSWORD} < /init.sql"
                     
                     echo "Database initialized successfully"
                 '''
@@ -319,61 +343,61 @@ EOF
                         echo "Creating sample test..."
                         mkdir -p tests
                         cat > tests/test_sample.py << 'EOF'
-import pytest
-from selenium import webdriver
-from selenium.webdriver.chrome.options import Options
-import os
+                        import pytest
+                        from selenium import webdriver
+                        from selenium.webdriver.chrome.options import Options
+                        import os
 
-def test_chrome_webdriver():
-    """Test Chrome WebDriver functionality"""
-    options = Options()
-    options.add_argument('--headless')
-    options.add_argument('--no-sandbox')
-    options.add_argument('--disable-dev-shm-usage')
-    options.add_argument('--disable-gpu')
-    options.add_argument('--remote-debugging-port=9222')
-    
-    driver = webdriver.Chrome(options=options)
-    try:
-        driver.get("https://www.google.com")
-        assert "Google" in driver.title
-        print(f"Successfully loaded: {driver.title}")
-    finally:
-        driver.quit()
+                        def test_chrome_webdriver():
+                            """Test Chrome WebDriver functionality"""
+                            options = Options()
+                            options.add_argument('--headless')
+                            options.add_argument('--no-sandbox')
+                            options.add_argument('--disable-dev-shm-usage')
+                            options.add_argument('--disable-gpu')
+                            options.add_argument('--remote-debugging-port=9222')
+                            
+                            driver = webdriver.Chrome(options=options)
+                            try:
+                                driver.get("https://www.google.com")
+                                assert "Google" in driver.title
+                                print(f"Successfully loaded: {driver.title}")
+                            finally:
+                                driver.quit()
 
-def test_database_connection():
-    """Test database connectivity"""
-    import mysql.connector
-    
-    try:
-        connection = mysql.connector.connect(
-            host=os.getenv('DATABASE_HOST', '127.0.0.1'),
-            port=os.getenv('DATABASE_PORT', '3306'),
-            user=os.getenv('DATABASE_USER', 'root'),
-            password=os.getenv('DATABASE_PASSWORD', 'root'),
-            database=os.getenv('DATABASE_NAME', 'test_data')
-        )
-        cursor = connection.cursor()
-        cursor.execute("SELECT COUNT(*) FROM fixed_deposits")
-        result = cursor.fetchone()
-        assert result[0] > 0
-        print(f"Database test passed: {result[0]} records found")
-        cursor.close()
-        connection.close()
-    except Exception as e:
-        pytest.fail(f"Database connection failed: {e}")
+                        def test_database_connection():
+                            """Test database connectivity"""
+                            import mysql.connector
+                            
+                            try:
+                                connection = mysql.connector.connect(
+                                    host=os.getenv('DATABASE_HOST', '127.0.0.1'),
+                                    port=os.getenv('DATABASE_PORT', '3306'),
+                                    user=os.getenv('DATABASE_USER', 'root'),
+                                    password=os.getenv(${env.DATABASE_PASSWORD}, 'root'),
+                                    database=os.getenv('DATABASE_NAME', 'test_data')
+                                )
+                                cursor = connection.cursor()
+                                cursor.execute("SELECT COUNT(*) FROM fixed_deposits")
+                                result = cursor.fetchone()
+                                assert result[0] > 0
+                                print(f"Database test passed: {result[0]} records found")
+                                cursor.close()
+                                connection.close()
+                            except Exception as e:
+                                pytest.fail(f"Database connection failed: {e}")
 
-def test_basic_assertion():
-    """Basic test to ensure pytest is working"""
-    assert 1 + 1 == 2
-    assert "hello".upper() == "HELLO"
-EOF
+                        def test_basic_assertion():
+                            """Basic test to ensure pytest is working"""
+                            assert 1 + 1 == 2
+                            assert "hello".upper() == "HELLO"
+                        EOF
                     fi
                     
                     # Run tests
-                    pytest tests/ -v --tb=short \
-                        --alluredir=${ALLURE_RESULTS} \
-                        --html=${REPORTS_DIR}/report.html --self-contained-html \
+                    pytest tests/ -vv --tb=short \
+                        --alluredir=${env.ALLURE_RESULTS} \
+                        --html=${env.REPORTS_DIR}/report.html --self-contained-html \
                         || echo "Some tests failed, but continuing with report generation..."
                 '''
             }
@@ -395,7 +419,7 @@ EOF
                     fi
                     
                     # Generate Allure report if results exist
-                    if [ -d "${ALLURE_RESULTS}" ] && [ "$(ls -A ${ALLURE_RESULTS})" ]; then
+                    if [ -d "${env.ALLURE_RESULTS}" ] && [ "$(ls -A ${env.ALLURE_RESULTS})" ]; then
                         echo "Generating Allure report..."
                         allure generate ${ALLURE_RESULTS} -o allure-report --clean
                         echo "Allure report generated successfully"
@@ -460,16 +484,16 @@ EOF
         }
         
         success {
-            echo '✅ Pipeline completed successfully!'
+            echo 'Pipeline completed successfully!'
         }
         
         failure {
-            echo '❌ Pipeline failed!'
+            echo 'Pipeline failed!'
             script {
                 // Optional: Send notification on failure
                 try {
                     emailext(
-                        subject: "❌ Test Pipeline Failed: ${env.JOB_NAME} #${env.BUILD_NUMBER}",
+                        subject: "Test Pipeline Failed: ${env.JOB_NAME} #${env.BUILD_NUMBER}",
                         body: """
                         Test pipeline failed for job: ${env.JOB_NAME}
                         Build number: ${env.BUILD_NUMBER}
