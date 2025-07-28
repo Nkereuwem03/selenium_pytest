@@ -2,10 +2,11 @@ pipeline {
     agent any
     
     environment {
-        // Database Configuration (removed DATABASE_PASSWORD)
+        // Database Configuration
         DATABASE_HOST = '127.0.0.1'
         DATABASE_PORT = '3306'
         DATABASE_USER = 'root'
+        DATABASE_PASSWORD = credentials('mysql-password')
         DATABASE_NAME = 'test_data'
         
         // Application Environment
@@ -24,25 +25,18 @@ pipeline {
         REPORTS_DIR = 'reports'
         ALLURE_RESULTS = 'allure-results'
         TMPDIR = '/tmp'
+        
+        // Ensure non-interactive shell for apt-get
+        DEBIAN_FRONTEND = 'noninteractive'
     }
-
-    // triggers {
-    //     pollSCM('H/5 * * * *') // Poll every 5 minutes
-    // }
         
     options {
-        timeout(time: 30, unit: 'MINUTES')
+        timeout(time: 45, unit: 'MINUTES')
         buildDiscarder(logRotator(numToKeepStr: '10'))
         skipStagesAfterUnstable()
     }
     
     stages {
-        // stage('Checkout') {
-        //     steps {
-        //         checkout scm
-        //     }
-        // }
-        
         stage('System Check') {
             steps {
                 sh '''
@@ -57,6 +51,7 @@ pipeline {
                         docker version || echo "Docker daemon not running or no permissions"
                     else
                         echo "Docker command not found"
+                        exit 1
                     fi
                     
                     echo "=== Available Python versions ==="
@@ -109,7 +104,7 @@ pipeline {
                 sh '''
                     echo "=== Installing System Dependencies ==="
                     sudo apt-get update
-                    sudo apt-get install -y wget unzip curl jq fonts-liberation libatk-bridge2.0-0 \
+                    sudo apt-get install -y gnupg wget unzip curl jq fonts-liberation libatk-bridge2.0-0 \
                         libatk1.0-0 libcairo2 libcups2 libdrm2 libgbm1 libgtk-3-0 libnspr4 \
                         libnss3 libpango-1.0-0 libu2f-udev libx11-xcb1 libxcomposite1 \
                         libxdamage1 libxfixes3 libxrandr2 xdg-utils xvfb psmisc mysql-client \
@@ -152,6 +147,13 @@ EOF
                 sh '''
                     echo "=== Chrome Installation ==="
                     
+                    # Clean up any existing Google Chrome repository files
+                    sudo rm -f /etc/apt/sources.list.d/google.list /etc/apt/sources.list.d/google-chrome.list
+                    
+                    # Debug: List repository files
+                    echo "Listing repository files..."
+                    ls -l /etc/apt/sources.list.d/
+                    
                     # Download and add Google Chrome signing key
                     wget -q -O /tmp/linux_signing_key.pub https://dl.google.com/linux/linux_signing_key.pub
                     sudo mv /tmp/linux_signing_key.pub /usr/share/keyrings/googlechrome-linux-keyring.asc
@@ -160,9 +162,6 @@ EOF
                     echo "deb [arch=amd64 signed-by=/usr/share/keyrings/googlechrome-linux-keyring.asc] \
                         http://dl.google.com/linux/chrome/deb/ stable main" | \
                         sudo tee /etc/apt/sources.list.d/google-chrome.list
-                    
-                    # Remove duplicate repository file if it exists
-                    sudo rm -f /etc/apt/sources.list.d/google.list
                     
                     sudo apt-get update
                     sudo apt-get install -y google-chrome-stable
@@ -189,55 +188,60 @@ EOF
         stage('Setup MySQL Alternative') {
             steps {
                 script {
-                    withCredentials([string(credentialsId: 'mysql-password', variable: 'DATABASE_PASSWORD')]) {
-                        try {
-                            sh '''
-                                # Try Docker approach
-                                docker --version
-                                docker ps
-                                
-                                # Stop any existing MySQL containers
-                                docker stop test-mysql || true
-                                docker rm test-mysql || true
-                                
-                                # Start new MySQL container
-                                docker run -d \
-                                    --name test-mysql \
-                                    -e MYSQL_ROOT_PASSWORD="$DATABASE_PASSWORD" \
-                                    -e MYSQL_DATABASE=test_data \
-                                    -p 3306:3306 \
-                                    --health-cmd="mysqladmin ping --silent" \
-                                    --health-interval=10s \
-                                    --health-timeout=5s \
-                                    --health-retries=3 \
-                                    mysql:latest
-                                    
-                                echo "MySQL container started successfully"
-                            '''
-                        } catch (Exception e) {
-                            echo "Docker approach failed: ${e.message}"
-                            echo "Trying direct MySQL installation..."
+                    try {
+                        sh '''
+                            echo "=== Setting up MySQL ==="
                             
-                            sh '''
-                                # Fallback: Install MySQL directly (without sudo if not available)
-                                echo "=== MySQL Fallback Installation ==="
+                            # Enable IPv4 forwarding for Docker networking
+                            sudo sysctl -w net.ipv4.conf.all.forwarding=1
+                            
+                            # Verify Docker availability
+                            docker --version
+                            docker ps
+                            
+                            # Stop any existing MySQL containers
+                            docker stop test-mysql || true
+                            docker rm test-mysql || true
+                            
+                            # Start new MySQL container
+                            docker run -d \
+                                --name test-mysql \
+                                -e MYSQL_ROOT_PASSWORD=$DATABASE_PASSWORD \
+                                -e MYSQL_DATABASE=test_data \
+                                -p 3306:3306 \
+                                --health-cmd="mysqladmin ping --silent" \
+                                --health-interval=10s \
+                                --health-timeout=5s \
+                                --health-retries=3 \
+                                mysql:latest
                                 
-                                # Check if MySQL is already running
-                                if pgrep mysqld > /dev/null; then
-                                    echo "MySQL is already running"
-                                    exit 0
-                                fi
-                                
-                                # Try to install MySQL without sudo first
-                                if command -v mysql >/dev/null 2>&1; then
-                                    echo "MySQL client already available"
-                                else
-                                    echo "MySQL not available. This pipeline requires MySQL."
-                                    echo "Please ensure Docker is available or MySQL is pre-installed."
-                                    exit 1
-                                fi
-                            '''
-                        }
+                            # Verify container networking
+                            docker inspect test-mysql | grep IPAddress
+                            
+                            echo "MySQL container started successfully"
+                        '''
+                    } catch (Exception e) {
+                        echo "Docker approach failed: ${e.message}"
+                        echo "Trying direct MySQL installation..."
+                        
+                        sh '''
+                            echo "=== MySQL Fallback Installation ==="
+                            
+                            # Check if MySQL is already running
+                            if pgrep mysqld > /dev/null; then
+                                echo "MySQL is already running"
+                                exit 0
+                            fi
+                            
+                            # Try to install MySQL without sudo first
+                            if command -v mysql >/dev/null 2>&1; then
+                                echo "MySQL client already available"
+                            else
+                                echo "MySQL not available. This pipeline requires MySQL."
+                                echo "Please ensure Docker is available or MySQL is pre-installed."
+                                exit 1
+                            fi
+                        '''
                     }
                 }
             }
@@ -248,20 +252,34 @@ EOF
                 withCredentials([string(credentialsId: 'mysql-password', variable: 'DATABASE_PASSWORD')]) {
                     sh '''
                         echo "=== Waiting for MySQL to be ready ==="
-                        for i in $(seq 1 60); do
-                            if docker exec test-mysql mysqladmin ping -uroot -p"$DATABASE_PASSWORD" --silent 2>/dev/null; then
+                        
+                        # Create MySQL config file
+                        cat > /tmp/my.cnf << EOF
+[client]
+user=root
+password=$DATABASE_PASSWORD
+host=127.0.0.1
+port=3306
+EOF
+                        
+                        for i in $(seq 1 120); do
+                            if docker exec test-mysql mysqladmin --defaults-file=/my.cnf ping --silent 2>/dev/null; then
                                 echo "MySQL is ready!"
                                 break
                             fi
-                            echo "Waiting for MySQL... (attempt $i/60)"
+                            echo "Waiting for MySQL... (attempt $i/120)"
                             sleep 2
                         done
                         
-                        # Verify MySQL is actually ready
-                        docker exec test-mysql mysqladmin ping -uroot -p"$DATABASE_PASSWORD" --silent || {
+                        # Verify MySQL is ready
+                        docker exec test-mysql mysqladmin --defaults-file=/my.cnf ping --silent || {
                             echo "MySQL failed to start properly"
+                            docker logs test-mysql
                             exit 1
                         }
+                        
+                        # Clean up config file
+                        rm -f /tmp/my.cnf
                     '''
                 }
             }
@@ -304,9 +322,29 @@ INSERT INTO fixed_deposits (
 EOF
                         fi
                         
+                        # Create MySQL config file
+                        cat > /tmp/my.cnf << EOF
+[client]
+user=root
+password=$DATABASE_PASSWORD
+host=127.0.0.1
+port=3306
+EOF
+                        
+                        # Test MySQL connection
+                        docker exec test-mysql mysql --defaults-file=/my.cnf -e "SELECT 1" || {
+                            echo "Failed to connect to MySQL. Check credentials and container status."
+                            docker logs test-mysql
+                            exit 1
+                        }
+                        
                         # Initialize database
                         docker cp init.sql test-mysql:/init.sql
-                        docker exec test-mysql bash -c "mysql -uroot -p\"$DATABASE_PASSWORD\" < /init.sql"
+                        docker cp /tmp/my.cnf test-mysql:/my.cnf
+                        docker exec test-mysql bash -c "mysql --defaults-file=/my.cnf < /init.sql"
+                        
+                        # Clean up config file
+                        rm -f /tmp/my.cnf
                         
                         echo "Database initialized successfully"
                     '''
@@ -342,21 +380,19 @@ EOF
         
         stage('Run Tests') {
             steps {
-                withCredentials([string(credentialsId: 'mysql-password', variable: 'DATABASE_PASSWORD')]) {
-                    sh '''
-                        echo "=== Running Tests ==="
-                        . ${VENV_DIR}/bin/activate
-                        
-                        # Create a basic test if none exists
-                        if [ ! -f test_*.py ] && [ ! -d tests ]; then
-                            echo "Creating sample test..."
-                            mkdir -p tests
-                            cat > tests/test_sample.py << 'EOF'
+                sh '''
+                    echo "=== Running Tests ==="
+                    . ${VENV_DIR}/bin/activate
+                    
+                    # Create a basic test if none exists
+                    if [ ! -f test_*.py ] && [ ! -d tests ]; then
+                        echo "Creating sample test..."
+                        mkdir -p tests
+                        cat > tests/test_sample.py << 'EOF'
 import pytest
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 import os
-import mysql.connector
 
 def test_chrome_webdriver():
     """Test Chrome WebDriver functionality"""
@@ -377,12 +413,14 @@ def test_chrome_webdriver():
 
 def test_database_connection():
     """Test database connectivity"""
+    import mysql.connector
+    
     try:
         connection = mysql.connector.connect(
             host=os.getenv('DATABASE_HOST', '127.0.0.1'),
             port=os.getenv('DATABASE_PORT', '3306'),
             user=os.getenv('DATABASE_USER', 'root'),
-            password=os.getenv('DATABASE_PASSWORD'),
+            password=os.getenv('DATABASE_PASSWORD', 'root'),
             database=os.getenv('DATABASE_NAME', 'test_data')
         )
         cursor = connection.cursor()
@@ -400,18 +438,14 @@ def test_basic_assertion():
     assert 1 + 1 == 2
     assert "hello".upper() == "HELLO"
 EOF
-                        fi
-                        
-                        # Export DATABASE_PASSWORD for pytest to use
-                        export DATABASE_PASSWORD="$DATABASE_PASSWORD"
-                        
-                        # Run tests
-                        pytest tests/ -vv --tb=short \
-                            --alluredir=${ALLURE_RESULTS} \
-                            --html=${REPORTS_DIR}/report.html --self-contained-html \
-                            || echo "Some tests failed, but continuing with report generation..."
-                    '''
-                }
+                    fi
+                    
+                    # Run tests
+                    pytest tests/ -vv --tb=short \
+                        --alluredir=${ALLURE_RESULTS} \
+                        --html=${REPORTS_DIR}/report.html --self-contained-html \
+                        || echo "Some tests failed, but continuing with report generation..."
+                '''
             }
         }
 
@@ -501,24 +535,24 @@ EOF
         
         failure {
             echo 'Pipeline failed!'
-            script {
-                // Optional: Send notification on failure
-                try {
-                    emailext(
-                        subject: "Test Pipeline Failed: ${env.JOB_NAME} #${env.BUILD_NUMBER}",
-                        body: """
-                        Test pipeline failed for job: ${env.JOB_NAME}
-                        Build number: ${env.BUILD_NUMBER}
-                        Build URL: ${env.BUILD_URL}
-                        
-                        Please check the Jenkins logs for more details.
-                        """,
-                        to: 'nkereuwem.udoudo1@gmail.com'
-                    )
-                } catch (Exception e) {
-                    echo "Failed to send notification: ${e.message}"
-                }
-            }
+            // Email notification disabled until SMTP is configured
+            // script {
+            //     try {
+            //         emailext(
+            //             subject: "Test Pipeline Failed: ${env.JOB_NAME} #${env.BUILD_NUMBER}",
+            //             body: """
+            //             Test pipeline failed for job: ${env.JOB_NAME}
+            //             Build number: ${env.BUILD_NUMBER}
+            //             Build URL: ${env.BUILD_URL}
+            //             
+            //             Please check the Jenkins logs for more details.
+            //             """,
+            //             to: 'nkereuwem.udoudo1@gmail.com'
+            //         )
+            //     } catch (Exception e) {
+            //         echo "Failed to send notification: ${e.message}"
+            //     }
+            // }
         }
     }
 }
