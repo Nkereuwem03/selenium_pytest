@@ -185,64 +185,38 @@ EOF
             }
         }
 
-        stage('Setup MySQL Alternative') {
+        stage('Setup MySQL') {
             steps {
-                script {
-                    try {
-                        sh '''
-                            echo "=== Setting up MySQL ==="
-                            
-                            # Enable IPv4 forwarding for Docker networking
-                            sudo sysctl -w net.ipv4.conf.all.forwarding=1
-                            
-                            # Verify Docker availability
-                            docker --version
-                            docker ps
-                            
-                            # Stop any existing MySQL containers
-                            docker stop test-mysql || true
-                            docker rm test-mysql || true
-                            
-                            # Start new MySQL container
-                            docker run -d \
-                                --name test-mysql \
-                                -e MYSQL_ROOT_PASSWORD=$DATABASE_PASSWORD \
-                                -e MYSQL_DATABASE=test_data \
-                                -p 3306:3306 \
-                                --health-cmd="mysqladmin ping --silent" \
-                                --health-interval=10s \
-                                --health-timeout=5s \
-                                --health-retries=3 \
-                                mysql:latest
-                                
-                            # Verify container networking
-                            docker inspect test-mysql | grep IPAddress
-                            
-                            echo "MySQL container started successfully"
-                        '''
-                    } catch (Exception e) {
-                        echo "Docker approach failed: ${e.message}"
-                        echo "Trying direct MySQL installation..."
+                withCredentials([string(credentialsId: 'mysql-password', variable: 'DATABASE_PASSWORD')]) {
+                    sh '''
+                        echo "=== Setting up MySQL ==="
                         
-                        sh '''
-                            echo "=== MySQL Fallback Installation ==="
-                            
-                            # Check if MySQL is already running
-                            if pgrep mysqld > /dev/null; then
-                                echo "MySQL is already running"
-                                exit 0
-                            fi
-                            
-                            # Try to install MySQL without sudo first
-                            if command -v mysql >/dev/null 2>&1; then
-                                echo "MySQL client already available"
-                            else
-                                echo "MySQL not available. This pipeline requires MySQL."
-                                echo "Please ensure Docker is available or MySQL is pre-installed."
-                                exit 1
-                            fi
-                        '''
-                    }
+                        # Enable IPv4 forwarding for Docker networking
+                        sudo sysctl -w net.ipv4.conf.all.forwarding=1
+                        
+                        # Verify Docker availability
+                        docker --version
+                        docker ps
+                        
+                        # Stop any existing MySQL containers
+                        docker stop test-mysql 2>/dev/null || true
+                        docker rm test-mysql 2>/dev/null || true
+                        
+                        # Start new MySQL container with proper health check
+                        docker run -d \
+                            --name test-mysql \
+                            -e MYSQL_ROOT_PASSWORD="$DATABASE_PASSWORD" \
+                            -e MYSQL_DATABASE=test_data \
+                            -e MYSQL_ROOT_HOST='%' \
+                            -p 3306:3306 \
+                            --health-cmd="mysqladmin ping -h localhost -u root -p$DATABASE_PASSWORD" \
+                            --health-interval=10s \
+                            --health-timeout=10s \
+                            --health-retries=5 \
+                            mysql:8.0
+                        
+                        echo "MySQL container started successfully"
+                    '''
                 }
             }
         }
@@ -253,33 +227,40 @@ EOF
                     sh '''
                         echo "=== Waiting for MySQL to be ready ==="
                         
-                        # Create MySQL config file
-                        cat > /tmp/my.cnf << EOF
-[client]
-user=root
-password=$DATABASE_PASSWORD
-host=127.0.0.1
-port=3306
-EOF
+                        # Wait for container to be running
+                        echo "Waiting for container to start..."
+                        sleep 10
                         
-                        for i in $(seq 1 120); do
-                            if docker exec test-mysql mysqladmin --defaults-file=/my.cnf ping --silent 2>/dev/null; then
-                                echo "MySQL is ready!"
-                                break
-                            fi
-                            echo "Waiting for MySQL... (attempt $i/120)"
-                            sleep 2
-                        done
-                        
-                        # Verify MySQL is ready
-                        docker exec test-mysql mysqladmin --defaults-file=/my.cnf ping --silent || {
-                            echo "MySQL failed to start properly"
+                        # Check container status
+                        docker ps | grep test-mysql || {
+                            echo "MySQL container is not running!"
                             docker logs test-mysql
                             exit 1
                         }
                         
-                        # Clean up config file
-                        rm -f /tmp/my.cnf
+                        # Wait for MySQL to be ready (up to 3 minutes)
+                        for i in $(seq 1 30); do
+                            echo "Checking MySQL readiness... (attempt $i/30)"
+                            
+                            # Try to connect using docker exec with proper mysql command
+                            if docker exec test-mysql mysql -u root -p"$DATABASE_PASSWORD" -e "SELECT 1;" >/dev/null 2>&1; then
+                                echo "MySQL is ready!"
+                                break
+                            fi
+                            
+                            if [ $i -eq 30 ]; then
+                                echo "MySQL failed to start properly after 5 minutes"
+                                echo "Container logs:"
+                                docker logs test-mysql
+                                echo "Container status:"
+                                docker ps -a | grep test-mysql
+                                exit 1
+                            fi
+                            
+                            sleep 10
+                        done
+                        
+                        echo "MySQL is ready for connections"
                     '''
                 }
             }
@@ -322,29 +303,19 @@ INSERT INTO fixed_deposits (
 EOF
                         fi
                         
-                        # Create MySQL config file
-                        cat > /tmp/my.cnf << EOF
-[client]
-user=root
-password=$DATABASE_PASSWORD
-host=127.0.0.1
-port=3306
-EOF
-                        
                         # Test MySQL connection
-                        docker exec test-mysql mysql --defaults-file=/my.cnf -e "SELECT 1" || {
+                        docker exec test-mysql mysql -u root -p"$DATABASE_PASSWORD" -e "SELECT 1" || {
                             echo "Failed to connect to MySQL. Check credentials and container status."
                             docker logs test-mysql
                             exit 1
                         }
                         
-                        # Initialize database
-                        docker cp init.sql test-mysql:/init.sql
-                        docker cp /tmp/my.cnf test-mysql:/my.cnf
-                        docker exec test-mysql bash -c "mysql --defaults-file=/my.cnf < /init.sql"
+                        # Initialize database by copying and executing SQL file
+                        docker cp init.sql test-mysql:/tmp/init.sql
+                        docker exec test-mysql mysql -u root -p"$DATABASE_PASSWORD" < /tmp/init.sql
                         
-                        # Clean up config file
-                        rm -f /tmp/my.cnf
+                        # Verify initialization
+                        docker exec test-mysql mysql -u root -p"$DATABASE_PASSWORD" -e "USE test_data; SELECT COUNT(*) as record_count FROM fixed_deposits;"
                         
                         echo "Database initialized successfully"
                     '''
@@ -530,29 +501,11 @@ EOF
         }
         
         success {
-            echo 'Pipeline completed successfully!...'
+            echo 'Pipeline completed successfully!'
         }
         
         failure {
             echo 'Pipeline failed!'
-            // Email notification disabled until SMTP is configured
-            // script {
-            //     try {
-            //         emailext(
-            //             subject: "Test Pipeline Failed: ${env.JOB_NAME} #${env.BUILD_NUMBER}",
-            //             body: """
-            //             Test pipeline failed for job: ${env.JOB_NAME}
-            //             Build number: ${env.BUILD_NUMBER}
-            //             Build URL: ${env.BUILD_URL}
-            //             
-            //             Please check the Jenkins logs for more details.
-            //             """,
-            //             to: 'nkereuwem.udoudo1@gmail.com'
-            //         )
-            //     } catch (Exception e) {
-            //         echo "Failed to send notification: ${e.message}"
-            //     }
-            // }
         }
     }
 }
