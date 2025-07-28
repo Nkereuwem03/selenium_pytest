@@ -37,7 +37,7 @@ pipeline {
     }
     
     stages {
-        stage('System Check') {
+        // stage('System Check') {
         //     steps {
         //         sh '''
         //             echo "=== System Information ==="
