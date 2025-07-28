@@ -2,9 +2,9 @@ name: Selenium Pytest CI
 
 on:
   push:
-    branches: [main, master]
+    branches: [maint]
   pull_request:
-    branches: [main, master]
+    branches: [maint]
 
 jobs:
   test:
