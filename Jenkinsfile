@@ -2,11 +2,10 @@ pipeline {
     agent any
     
     environment {
-        // Database Configuration
+        // Database Configuration (removed DATABASE_PASSWORD)
         DATABASE_HOST = '127.0.0.1'
         DATABASE_PORT = '3306'
         DATABASE_USER = 'root'
-        DATABASE_PASSWORD = credentials('mysql-password')
         DATABASE_NAME = 'test_data'
         
         // Application Environment
@@ -190,54 +189,55 @@ EOF
         stage('Setup MySQL Alternative') {
             steps {
                 script {
-                    // Try Docker first, fallback to direct MySQL installation
-                    try {
-                        sh '''
-                            # Try Docker approach
-                            docker --version
-                            docker ps
-                            
-                            # Stop any existing MySQL containers
-                            docker stop test-mysql || true
-                            docker rm test-mysql || true
-                            
-                            # Start new MySQL container
-                            docker run -d \
-                                --name test-mysql \
-                                -e MYSQL_ROOT_PASSWORD=$DATABASE_PASSWORD \
-                                -e MYSQL_DATABASE=test_data \
-                                -p 3306:3306 \
-                                --health-cmd="mysqladmin ping --silent" \
-                                --health-interval=10s \
-                                --health-timeout=5s \
-                                --health-retries=3 \
-                                mysql:latest
+                    withCredentials([string(credentialsId: 'mysql-password', variable: 'DATABASE_PASSWORD')]) {
+                        try {
+                            sh '''
+                                # Try Docker approach
+                                docker --version
+                                docker ps
                                 
-                            echo "MySQL container started successfully"
-                        '''
-                    } catch (Exception e) {
-                        echo "Docker approach failed: ${e.message}"
-                        echo "Trying direct MySQL installation..."
-                        
-                        sh '''
-                            # Fallback: Install MySQL directly (without sudo if not available)
-                            echo "=== MySQL Fallback Installation ==="
+                                # Stop any existing MySQL containers
+                                docker stop test-mysql || true
+                                docker rm test-mysql || true
+                                
+                                # Start new MySQL container
+                                docker run -d \
+                                    --name test-mysql \
+                                    -e MYSQL_ROOT_PASSWORD="$DATABASE_PASSWORD" \
+                                    -e MYSQL_DATABASE=test_data \
+                                    -p 3306:3306 \
+                                    --health-cmd="mysqladmin ping --silent" \
+                                    --health-interval=10s \
+                                    --health-timeout=5s \
+                                    --health-retries=3 \
+                                    mysql:latest
+                                    
+                                echo "MySQL container started successfully"
+                            '''
+                        } catch (Exception e) {
+                            echo "Docker approach failed: ${e.message}"
+                            echo "Trying direct MySQL installation..."
                             
-                            # Check if MySQL is already running
-                            if pgrep mysqld > /dev/null; then
-                                echo "MySQL is already running"
-                                exit 0
-                            fi
-                            
-                            # Try to install MySQL without sudo first
-                            if command -v mysql >/dev/null 2>&1; then
-                                echo "MySQL client already available"
-                            else
-                                echo "MySQL not available. This pipeline requires MySQL."
-                                echo "Please ensure Docker is available or MySQL is pre-installed."
-                                exit 1
-                            fi
-                        '''
+                            sh '''
+                                # Fallback: Install MySQL directly (without sudo if not available)
+                                echo "=== MySQL Fallback Installation ==="
+                                
+                                # Check if MySQL is already running
+                                if pgrep mysqld > /dev/null; then
+                                    echo "MySQL is already running"
+                                    exit 0
+                                fi
+                                
+                                # Try to install MySQL without sudo first
+                                if command -v mysql >/dev/null 2>&1; then
+                                    echo "MySQL client already available"
+                                else
+                                    echo "MySQL not available. This pipeline requires MySQL."
+                                    echo "Please ensure Docker is available or MySQL is pre-installed."
+                                    exit 1
+                                fi
+                            '''
+                        }
                     }
                 }
             }
@@ -245,35 +245,38 @@ EOF
 
         stage('Wait for MySQL') {
             steps {
-                sh '''
-                    echo "=== Waiting for MySQL to be ready ==="
-                    for i in $(seq 1 60); do
-                        if docker exec test-mysql mysqladmin ping -uroot -p$DATABASE_PASSWORD --silent 2>/dev/null; then
-                            echo "MySQL is ready!"
-                            break
-                        fi
-                        echo "Waiting for MySQL... (attempt $i/60)"
-                        sleep 2
-                    done
-                    
-                    # Verify MySQL is actually ready
-                    docker exec test-mysql mysqladmin ping -uroot -p$DATABASE_PASSWORD --silent || {
-                        echo "MySQL failed to start properly"
-                        exit 1
-                    }
-                '''
+                withCredentials([string(credentialsId: 'mysql-password', variable: 'DATABASE_PASSWORD')]) {
+                    sh '''
+                        echo "=== Waiting for MySQL to be ready ==="
+                        for i in $(seq 1 60); do
+                            if docker exec test-mysql mysqladmin ping -uroot -p"$DATABASE_PASSWORD" --silent 2>/dev/null; then
+                                echo "MySQL is ready!"
+                                break
+                            fi
+                            echo "Waiting for MySQL... (attempt $i/60)"
+                            sleep 2
+                        done
+                        
+                        # Verify MySQL is actually ready
+                        docker exec test-mysql mysqladmin ping -uroot -p"$DATABASE_PASSWORD" --silent || {
+                            echo "MySQL failed to start properly"
+                            exit 1
+                        }
+                    '''
+                }
             }
         }
         
         stage('Initialize Database') {
             steps {
-                sh '''
-                    echo "=== Database Initialization ==="
-                    
-                    # Create init.sql if it doesn't exist
-                    if [ ! -f init.sql ]; then 
-                        echo "Creating sample database schema..."
-                        cat > init.sql << 'EOF'
+                withCredentials([string(credentialsId: 'mysql-password', variable: 'DATABASE_PASSWORD')]) {
+                    sh '''
+                        echo "=== Database Initialization ==="
+                        
+                        # Create init.sql if it doesn't exist
+                        if [ ! -f init.sql ]; then 
+                            echo "Creating sample database schema..."
+                            cat > init.sql << 'EOF'
 CREATE DATABASE IF NOT EXISTS test_data;
 USE test_data;
 
@@ -299,14 +302,15 @@ INSERT INTO fixed_deposits (
 (75000, 2, 'months', 12.00, 'Yearly', 0.9, 'pass', NULL),
 (85000, 2, 'days', 12.00, 'Yearly', 2.1, 'fail', NULL);
 EOF
-                    fi
-                    
-                    # Initialize database
-                    docker cp init.sql test-mysql:/init.sql
-                    docker exec test-mysql bash -c "mysql -uroot -p$DATABASE_PASSWORD < /init.sql"
-                    
-                    echo "Database initialized successfully"
-                '''
+                        fi
+                        
+                        # Initialize database
+                        docker cp init.sql test-mysql:/init.sql
+                        docker exec test-mysql bash -c "mysql -uroot -p\"$DATABASE_PASSWORD\" < /init.sql"
+                        
+                        echo "Database initialized successfully"
+                    '''
+                }
             }
         }
 
@@ -338,19 +342,21 @@ EOF
         
         stage('Run Tests') {
             steps {
-                sh '''
-                    echo "=== Running Tests ==="
-                    . ${VENV_DIR}/bin/activate
-                    
-                    # Create a basic test if none exists
-                    if [ ! -f test_*.py ] && [ ! -d tests ]; then
-                        echo "Creating sample test..."
-                        mkdir -p tests
-                        cat > tests/test_sample.py << 'EOF'
+                withCredentials([string(credentialsId: 'mysql-password', variable: 'DATABASE_PASSWORD')]) {
+                    sh '''
+                        echo "=== Running Tests ==="
+                        . ${VENV_DIR}/bin/activate
+                        
+                        # Create a basic test if none exists
+                        if [ ! -f test_*.py ] && [ ! -d tests ]; then
+                            echo "Creating sample test..."
+                            mkdir -p tests
+                            cat > tests/test_sample.py << 'EOF'
 import pytest
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 import os
+import mysql.connector
 
 def test_chrome_webdriver():
     """Test Chrome WebDriver functionality"""
@@ -371,14 +377,12 @@ def test_chrome_webdriver():
 
 def test_database_connection():
     """Test database connectivity"""
-    import mysql.connector
-    
     try:
         connection = mysql.connector.connect(
             host=os.getenv('DATABASE_HOST', '127.0.0.1'),
             port=os.getenv('DATABASE_PORT', '3306'),
             user=os.getenv('DATABASE_USER', 'root'),
-            password=os.getenv('DATABASE_PASSWORD', 'root'),
+            password=os.getenv('DATABASE_PASSWORD'),
             database=os.getenv('DATABASE_NAME', 'test_data')
         )
         cursor = connection.cursor()
@@ -396,14 +400,18 @@ def test_basic_assertion():
     assert 1 + 1 == 2
     assert "hello".upper() == "HELLO"
 EOF
-                    fi
-                    
-                    # Run tests
-                    pytest tests/ -vv --tb=short \
-                        --alluredir=${ALLURE_RESULTS} \
-                        --html=${REPORTS_DIR}/report.html --self-contained-html \
-                        || echo "Some tests failed, but continuing with report generation..."
-                '''
+                        fi
+                        
+                        # Export DATABASE_PASSWORD for pytest to use
+                        export DATABASE_PASSWORD="$DATABASE_PASSWORD"
+                        
+                        # Run tests
+                        pytest tests/ -vv --tb=short \
+                            --alluredir=${ALLURE_RESULTS} \
+                            --html=${REPORTS_DIR}/report.html --self-contained-html \
+                            || echo "Some tests failed, but continuing with report generation..."
+                    '''
+                }
             }
         }
 
