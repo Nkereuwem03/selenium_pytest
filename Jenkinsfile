@@ -153,13 +153,17 @@ EOF
                 sh '''
                     echo "=== Chrome Installation ==="
                     
-                    # Add Google Chrome repository
-                    wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | \
-                        sudo gpg --dearmor -o /usr/share/keyrings/googlechrome-linux-keyring.gpg
+                    # Download and add Google Chrome signing key
+                    wget -q -O /tmp/linux_signing_key.pub https://dl.google.com/linux/linux_signing_key.pub
+                    sudo mv /tmp/linux_signing_key.pub /usr/share/keyrings/googlechrome-linux-keyring.asc
                     
-                    echo "deb [arch=amd64 signed-by=/usr/share/keyrings/googlechrome-linux-keyring.gpg] \
+                    # Add Google Chrome repository
+                    echo "deb [arch=amd64 signed-by=/usr/share/keyrings/googlechrome-linux-keyring.asc] \
                         http://dl.google.com/linux/chrome/deb/ stable main" | \
-                        sudo tee /etc/apt/sources.list.d/google.list
+                        sudo tee /etc/apt/sources.list.d/google-chrome.list
+                    
+                    # Remove duplicate repository file if it exists
+                    sudo rm -f /etc/apt/sources.list.d/google.list
                     
                     sudo apt-get update
                     sudo apt-get install -y google-chrome-stable
