@@ -27,9 +27,9 @@ pipeline {
         TMPDIR = '/tmp'
     }
 
-    triggers {
-        pollSCM('H/5 * * * *') // Poll every 5 minutes
-    }
+    // triggers {
+    //     pollSCM('H/5 * * * *') // Poll every 5 minutes
+    // }
         
     options {
         timeout(time: 30, unit: 'MINUTES')
@@ -38,11 +38,11 @@ pipeline {
     }
     
     stages {
-        stage('Checkout') {
-            steps {
-                checkout scm
-            }
-        }
+        // stage('Checkout') {
+        //     steps {
+        //         checkout scm
+        //     }
+        // }
         
         stage('System Check') {
             steps {
