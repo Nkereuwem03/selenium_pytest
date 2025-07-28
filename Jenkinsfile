@@ -38,152 +38,152 @@ pipeline {
     
     stages {
         stage('System Check') {
-            steps {
-                sh '''
-                    echo "=== System Information ==="
-                    whoami
-                    pwd
-                    uname -a
+        //     steps {
+        //         sh '''
+        //             echo "=== System Information ==="
+        //             whoami
+        //             pwd
+        //             uname -a
                     
-                    echo "=== Checking Docker availability ==="
-                    if command -v docker >/dev/null 2>&1; then
-                        echo "Docker command found"
-                        docker version || echo "Docker daemon not running or no permissions"
-                    else
-                        echo "Docker command not found"
-                        exit 1
-                    fi
+        //             echo "=== Checking Docker availability ==="
+        //             if command -v docker >/dev/null 2>&1; then
+        //                 echo "Docker command found"
+        //                 docker version || echo "Docker daemon not running or no permissions"
+        //             else
+        //                 echo "Docker command not found"
+        //                 exit 1
+        //             fi
                     
-                    echo "=== Available Python versions ==="
-                    python3 --version || echo "python3 not found"
-                    python3.10 --version || echo "python3.10 not found"
-                    python3.11 --version || echo "python3.11 not found"
-                '''
-            }
-        }
+        //             echo "=== Available Python versions ==="
+        //             python3 --version || echo "python3 not found"
+        //             python3.10 --version || echo "python3.10 not found"
+        //             python3.11 --version || echo "python3.11 not found"
+        //         '''
+        //     }
+        // }
         
-        stage('Setup Python Environment') {
-            steps {
-                sh '''
-                    echo "=== Python Environment Setup ==="
+        // stage('Setup Python Environment') {
+        //     steps {
+        //         sh '''
+        //             echo "=== Python Environment Setup ==="
                     
-                    # Find available Python version
-                    if command -v python3.11 >/dev/null 2>&1; then
-                        PYTHON_CMD="python3.11"
-                    elif command -v python3.10 >/dev/null 2>&1; then
-                        PYTHON_CMD="python3.10"
-                    elif command -v python3.9 >/dev/null 2>&1; then
-                        PYTHON_CMD="python3.9"
-                    elif command -v python3 >/dev/null 2>&1; then
-                        PYTHON_CMD="python3"
-                    else
-                        echo "No suitable Python version found"
-                        exit 1
-                    fi
+        //             # Find available Python version
+        //             if command -v python3.11 >/dev/null 2>&1; then
+        //                 PYTHON_CMD="python3.11"
+        //             elif command -v python3.10 >/dev/null 2>&1; then
+        //                 PYTHON_CMD="python3.10"
+        //             elif command -v python3.9 >/dev/null 2>&1; then
+        //                 PYTHON_CMD="python3.9"
+        //             elif command -v python3 >/dev/null 2>&1; then
+        //                 PYTHON_CMD="python3"
+        //             else
+        //                 echo "No suitable Python version found"
+        //                 exit 1
+        //             fi
                     
-                    echo "Using Python: $PYTHON_CMD"
-                    $PYTHON_CMD --version
+        //             echo "Using Python: $PYTHON_CMD"
+        //             $PYTHON_CMD --version
                     
-                    # Remove existing virtual environment
-                    rm -rf ${VENV_DIR}
+        //             # Remove existing virtual environment
+        //             rm -rf ${VENV_DIR}
                     
-                    # Create and activate virtual environment
-                    $PYTHON_CMD -m venv ${VENV_DIR}
-                    . ${VENV_DIR}/bin/activate
+        //             # Create and activate virtual environment
+        //             $PYTHON_CMD -m venv ${VENV_DIR}
+        //             . ${VENV_DIR}/bin/activate
                     
-                    # Upgrade pip
-                    pip install --upgrade pip
+        //             # Upgrade pip
+        //             pip install --upgrade pip
                     
-                    echo "Virtual environment created successfully"
-                '''
-            }
-        }
+        //             echo "Virtual environment created successfully"
+        //         '''
+        //     }
+        // }
 
-        stage('Install System Dependencies') {
-            steps {
-                sh '''
-                    echo "=== Installing System Dependencies ==="
-                    sudo apt-get update
-                    sudo apt-get install -y gnupg wget unzip curl jq fonts-liberation libatk-bridge2.0-0 \
-                        libatk1.0-0 libcairo2 libcups2 libdrm2 libgbm1 libgtk-3-0 libnspr4 \
-                        libnss3 libpango-1.0-0 libu2f-udev libx11-xcb1 libxcomposite1 \
-                        libxdamage1 libxfixes3 libxrandr2 xdg-utils xvfb psmisc mysql-client \
-                        software-properties-common
-                '''
-            }
-        }
+        // stage('Install System Dependencies') {
+        //     steps {
+        //         sh '''
+        //             echo "=== Installing System Dependencies ==="
+        //             sudo apt-get update
+        //             sudo apt-get install -y gnupg wget unzip curl jq fonts-liberation libatk-bridge2.0-0 \
+        //                 libatk1.0-0 libcairo2 libcups2 libdrm2 libgbm1 libgtk-3-0 libnspr4 \
+        //                 libnss3 libpango-1.0-0 libu2f-udev libx11-xcb1 libxcomposite1 \
+        //                 libxdamage1 libxfixes3 libxrandr2 xdg-utils xvfb psmisc mysql-client \
+        //                 software-properties-common
+        //         '''
+        //     }
+        // }
         
-        stage('Install Python Dependencies') {
-            steps {
-                sh '''
-                    echo "=== Installing Python Dependencies ==="
-                    . ${VENV_DIR}/bin/activate
+//         stage('Install Python Dependencies') {
+//             steps {
+//                 sh '''
+//                     echo "=== Installing Python Dependencies ==="
+//                     . ${VENV_DIR}/bin/activate
                     
-                    # Create requirements.txt if it doesn't exist
-                    if [ ! -f requirements.txt ]; then
-                        echo "requirements.txt not found! Creating basic requirements..."
-                        cat > requirements.txt << 'EOF'
-selenium>=4.0.0
-pytest>=7.0.0
-pytest-html>=3.0.0
-allure-pytest>=2.9.0
-mysql-connector-python>=9.3.0
-pymysql>=1.0.0
-python-dotenv>=0.19.0
-webdriver-manager>=3.8.0
-EOF
-                    fi
+//                     # Create requirements.txt if it doesn't exist
+//                     if [ ! -f requirements.txt ]; then
+//                         echo "requirements.txt not found! Creating basic requirements..."
+//                         cat > requirements.txt << 'EOF'
+// selenium>=4.0.0
+// pytest>=7.0.0
+// pytest-html>=3.0.0
+// allure-pytest>=2.9.0
+// mysql-connector-python>=9.3.0
+// pymysql>=1.0.0
+// python-dotenv>=0.19.0
+// webdriver-manager>=3.8.0
+// EOF
+//                     fi
                     
-                    # Install requirements
-                    pip install -r requirements.txt
+//                     # Install requirements
+//                     pip install -r requirements.txt
                     
-                    echo "Python dependencies installed successfully"
-                '''
-            }
-        }
+//                     echo "Python dependencies installed successfully"
+//                 '''
+//             }
+//         }
 
-        stage('Setup Chrome') {
-            steps {
-                sh '''
-                    echo "=== Chrome Installation ==="
+        // stage('Setup Chrome') {
+        //     steps {
+        //         sh '''
+        //             echo "=== Chrome Installation ==="
                     
-                    # Clean up any existing Google Chrome repository files
-                    sudo rm -f /etc/apt/sources.list.d/google.list /etc/apt/sources.list.d/google-chrome.list
+        //             # Clean up any existing Google Chrome repository files
+        //             sudo rm -f /etc/apt/sources.list.d/google.list /etc/apt/sources.list.d/google-chrome.list
                     
-                    # Debug: List repository files
-                    echo "Listing repository files..."
-                    ls -l /etc/apt/sources.list.d/
+        //             # Debug: List repository files
+        //             echo "Listing repository files..."
+        //             ls -l /etc/apt/sources.list.d/
                     
-                    # Download and add Google Chrome signing key
-                    wget -q -O /tmp/linux_signing_key.pub https://dl.google.com/linux/linux_signing_key.pub
-                    sudo mv /tmp/linux_signing_key.pub /usr/share/keyrings/googlechrome-linux-keyring.asc
+        //             # Download and add Google Chrome signing key
+        //             wget -q -O /tmp/linux_signing_key.pub https://dl.google.com/linux/linux_signing_key.pub
+        //             sudo mv /tmp/linux_signing_key.pub /usr/share/keyrings/googlechrome-linux-keyring.asc
                     
-                    # Add Google Chrome repository
-                    echo "deb [arch=amd64 signed-by=/usr/share/keyrings/googlechrome-linux-keyring.asc] \
-                        http://dl.google.com/linux/chrome/deb/ stable main" | \
-                        sudo tee /etc/apt/sources.list.d/google-chrome.list
+        //             # Add Google Chrome repository
+        //             echo "deb [arch=amd64 signed-by=/usr/share/keyrings/googlechrome-linux-keyring.asc] \
+        //                 http://dl.google.com/linux/chrome/deb/ stable main" | \
+        //                 sudo tee /etc/apt/sources.list.d/google-chrome.list
                     
-                    sudo apt-get update
-                    sudo apt-get install -y google-chrome-stable
+        //             sudo apt-get update
+        //             sudo apt-get install -y google-chrome-stable
                     
-                    # Verify installation
-                    google-chrome --version
+        //             # Verify installation
+        //             google-chrome --version
                     
-                    echo "Chrome installed successfully"
-                '''
-            }
-        }
+        //             echo "Chrome installed successfully"
+        //         '''
+        //     }
+        // }
 
-        stage('Setup Virtual Display') {
-            steps {
-                sh '''
-                    echo "=== Starting Virtual Display ==="
-                    sudo Xvfb :99 -screen 0 1920x1080x24 > /dev/null 2>&1 &
-                    sleep 3
-                    echo "Virtual display started on :99"
-                '''
-            }
-        }
+        // stage('Setup Virtual Display') {
+        //     steps {
+        //         sh '''
+        //             echo "=== Starting Virtual Display ==="
+        //             sudo Xvfb :99 -screen 0 1920x1080x24 > /dev/null 2>&1 &
+        //             sleep 3
+        //             echo "Virtual display started on :99"
+        //         '''
+        //     }
+        // }
 
         stage('Setup MySQL') {
             steps {
