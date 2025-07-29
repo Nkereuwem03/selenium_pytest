@@ -48,10 +48,62 @@ pipeline {
                     echo "=== Checking Docker availability ==="
                     if command -v docker >/dev/null 2>&1; then
                         echo "Docker command found"
-                        docker version || echo "Docker daemon not running or no permissions"
+                        if docker version >/dev/null 2>&1; then
+                            echo "Docker is working properly"
+                        else
+                            echo "Docker daemon not running or no permissions"
+                            echo "Attempting to start Docker daemon..."
+                            sudo systemctl start docker || echo "Failed to start Docker daemon"
+                            sudo systemctl enable docker || echo "Failed to enable Docker daemon"
+                            
+                            # Add jenkins user to docker group if not already
+                            sudo usermod -aG docker jenkins || echo "Failed to add jenkins to docker group"
+                            echo "You may need to restart Jenkins for Docker permissions to take effect"
+                        fi
                     else
-                        echo "Docker command not found"
-                        exit 1
+                        echo "Docker not found. Installing Docker..."
+                        
+                        # Update package index
+                        sudo apt-get update
+                        
+                        # Install prerequisites
+                        sudo apt-get install -y \
+                            ca-certificates \
+                            curl \
+                            gnupg \
+                            lsb-release
+                        
+                        # Add Docker's official GPG key
+                        sudo mkdir -p /etc/apt/keyrings
+                        curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+                        
+                        # Set up the repository
+                        echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+                        
+                        # Update package index again
+                        sudo apt-get update
+                        
+                        # Install Docker Engine
+                        sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+                        
+                        # Start and enable Docker
+                        sudo systemctl start docker
+                        sudo systemctl enable docker
+                        
+                        # Add jenkins user to docker group
+                        sudo usermod -aG docker jenkins
+                        
+                        # Verify installation
+                        if command -v docker >/dev/null 2>&1; then
+                            echo "Docker installed successfully"
+                            docker --version
+                            
+                            # Test Docker with a simple command (might fail due to permissions until restart)
+                            sudo docker run --rm hello-world || echo "Docker installed but may need Jenkins restart for permissions"
+                        else
+                            echo "Docker installation failed"
+                            exit 1
+                        fi
                     fi
                     
                     echo "=== Available Python versions ==="
@@ -187,32 +239,35 @@ EOF
 
         stage('Setup MySQL') {
             steps {
-                withCredentials([string(credentialsId: 'mysql-password', variable: 'DATABASE_PASSWORD')]) {
-                    sh """
-                    echo "=== Setting up MySQL with custom network ==="
+                sh '''
+                    echo "=== Setting up MySQL ==="
                     
-                    # Create custom network
-                    docker network create test-network || true
+                    # Enable IPv4 forwarding for Docker networking
+                    sudo sysctl -w net.ipv4.conf.all.forwarding=1
                     
-                    # Stop and remove any existing container
-                    docker stop test-mysql || true
-                    docker rm test-mysql || true
+                    # Verify Docker availability
+                    docker --version
+                    docker ps
                     
-                    # Run MySQL on custom network
-                    docker run -d --name test-mysql \\
-                        --network=test-network \\
-                        -e MYSQL_ROOT_PASSWORD="$DATABASE_PASSWORD" \\
-                        -e MYSQL_DATABASE=test_data \\
-                        -e MYSQL_ROOT_HOST=% \\
-                        --health-cmd="mysqladmin ping -h localhost -u root -p$DATABASE_PASSWORD" \\
-                        --health-interval=10s \\
-                        --health-timeout=10s \\
-                        --health-retries=5 \\
+                    # Stop any existing MySQL containers
+                    docker stop test-mysql 2>/dev/null || true
+                    docker rm test-mysql 2>/dev/null || true
+                    
+                    # Start new MySQL container with proper health check
+                    docker run -d \
+                        --name test-mysql \
+                        -e MYSQL_ROOT_PASSWORD="$DATABASE_PASSWORD" \
+                        -e MYSQL_DATABASE=test_data \
+                        -e MYSQL_ROOT_HOST='%' \
+                        -p 3306:3306 \
+                        --health-cmd="mysqladmin ping -h localhost -u root -p$DATABASE_PASSWORD" \
+                        --health-interval=10s \
+                        --health-timeout=10s \
+                        --health-retries=5 \
                         mysql:8.0
-                        
+                    
                     echo "MySQL container started successfully"
-                    """
-                }
+                '''
             }
         }
 
