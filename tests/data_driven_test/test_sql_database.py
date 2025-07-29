@@ -137,7 +137,6 @@ def find_element(driver: WebDriver, locator: tuple, data):
     element.send_keys(data)
 
 
-@pytest.mark.data_driven
 @pytest.mark.skipif(
     not os.getenv("DATABASE_PASSWORD"), reason="Database credentials not available"
 )
