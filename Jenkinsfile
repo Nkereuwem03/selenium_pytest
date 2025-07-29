@@ -223,44 +223,67 @@ EOF
 
         stage('Wait for MySQL') {
             steps {
-                withCredentials([string(credentialsId: 'mysql-password', variable: 'DATABASE_PASSWORD')]) {
+                withCredentials([string(credentialsId: 'database_password', variable: 'DATABASE_PASSWORD')]) {
                     sh '''
-                        echo "=== Waiting for MySQL to be ready ==="
+                        echo "=== Extended MySQL Readiness Check ==="
                         
-                        # Wait for container to be running
-                        echo "Waiting for container to start..."
-                        sleep 10
-                        
-                        # Check container status
-                        docker ps | grep test-mysql || {
-                            echo "MySQL container is not running!"
-                            docker logs test-mysql
-                            exit 1
-                        }
-                        
-                        # Wait for MySQL to be ready (up to 5 minutes)
-                        for i in $(seq 1 30); do
-                            echo "Checking MySQL readiness... (attempt $i/30)"
+                        # Wait up to 10 minutes for MySQL to be fully ready
+                        for i in $(seq 1 60); do
+                            echo "MySQL readiness check (attempt $i/60)"
                             
-                            # Try to connect using docker exec with proper mysql command
-                            if docker exec test-mysql mysql -u root -p"$DATABASE_PASSWORD" -e "SELECT 1;" >/dev/null 2>&1; then
-                                echo "MySQL is ready!"
-                                break
+                            # Check if container is running
+                            if ! docker ps | grep -q test-mysql; then
+                                echo "MySQL container is not running!"
+                                docker ps
+                                docker logs test-mysql
+                                exit 1
                             fi
                             
-                            if [ $i -eq 30 ]; then
-                                echo "MySQL failed to start properly after 5 minutes"
-                                echo "Container logs:"
+                            # Check if port is accessible
+                            if ! nc -z 127.0.0.1 3306; then
+                                echo "Port 3306 not accessible yet..."
+                                sleep 10
+                                continue
+                            fi
+                            
+                            # Test MySQL connection
+                            if docker exec test-mysql mysqladmin ping -h localhost -u root -p${DATABASE_PASSWORD} --silent; then
+                                echo "MySQL ping successful!"
+                                
+                                # Test database query
+                                if docker exec test-mysql mysql -u root -p${DATABASE_PASSWORD} -e "USE test_data; SELECT COUNT(*) FROM fixed_deposits;" > /dev/null 2>&1; then
+                                    echo "Database query test successful!"
+                                    break
+                                else
+                                    echo "Database query failed, retrying..."
+                                fi
+                            else
+                                echo "MySQL ping failed, retrying..."
+                            fi
+                            
+                            if [ $i -eq 60 ]; then
+                                echo "MySQL not ready after 60 attempts (10 minutes)"
+                                echo "=== Container Status ==="
+                                docker ps
+                                echo "=== Container Logs ==="
                                 docker logs test-mysql
-                                echo "Container status:"
-                                docker ps -a | grep test-mysql
+                                echo "=== Network Test ==="
+                                netstat -tlnp | grep 3306
                                 exit 1
                             fi
                             
                             sleep 10
                         done
                         
-                        echo "MySQL is ready for connections"
+                        echo "=== Final MySQL Verification ==="
+                        docker exec test-mysql mysql -u root -p${DATABASE_PASSWORD} -e "
+                            USE test_data; 
+                            SELECT 'Database connection successful' as status;
+                            SELECT COUNT(*) as record_count FROM fixed_deposits;
+                            SELECT id, fd_amount_rs, fd_period_value FROM fixed_deposits LIMIT 3;
+                        "
+                        
+                        echo "MySQL is fully ready for tests!"
                     '''
                 }
             }
