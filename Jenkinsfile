@@ -188,35 +188,30 @@ EOF
         stage('Setup MySQL') {
             steps {
                 withCredentials([string(credentialsId: 'mysql-password', variable: 'DATABASE_PASSWORD')]) {
-                    sh '''
-                        echo "=== Setting up MySQL ==="
+                    sh """
+                    echo "=== Setting up MySQL with custom network ==="
+                    
+                    # Create custom network
+                    docker network create test-network || true
+                    
+                    # Stop and remove any existing container
+                    docker stop test-mysql || true
+                    docker rm test-mysql || true
+                    
+                    # Run MySQL on custom network
+                    docker run -d --name test-mysql \\
+                        --network=test-network \\
+                        -e MYSQL_ROOT_PASSWORD="$DATABASE_PASSWORD" \\
+                        -e MYSQL_DATABASE=test_data \\
+                        -e MYSQL_ROOT_HOST=% \\
+                        --health-cmd="mysqladmin ping -h localhost -u root -p$DATABASE_PASSWORD" \\
+                        --health-interval=10s \\
+                        --health-timeout=10s \\
+                        --health-retries=5 \\
+                        mysql:8.0
                         
-                        # Enable IPv4 forwarding for Docker networking
-                        sudo sysctl -w net.ipv4.conf.all.forwarding=1
-                        
-                        # Verify Docker availability
-                        docker --version
-                        docker ps
-                        
-                        # Stop any existing MySQL containers
-                        docker stop test-mysql 2>/dev/null || true
-                        docker rm test-mysql 2>/dev/null || true
-                        
-                        # Start new MySQL container with proper health check
-                        docker run -d \
-                            --name test-mysql \
-                            -e MYSQL_ROOT_PASSWORD="$DATABASE_PASSWORD" \
-                            -e MYSQL_DATABASE=test_data \
-                            -e MYSQL_ROOT_HOST='%' \
-                            -p 3306:3306 \
-                            --health-cmd="mysqladmin ping -h localhost -u root -p$DATABASE_PASSWORD" \
-                            --health-interval=10s \
-                            --health-timeout=10s \
-                            --health-retries=5 \
-                            mysql:8.0
-                        
-                        echo "MySQL container started successfully"
-                    '''
+                    echo "MySQL container started successfully"
+                    """
                 }
             }
         }
