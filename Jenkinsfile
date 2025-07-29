@@ -223,7 +223,7 @@ EOF
 
         stage('Wait for MySQL') {
             steps {
-                withCredentials([string(credentialsId: 'database_password', variable: 'DATABASE_PASSWORD')]) {
+                withCredentials([string(credentialsId: 'mysql-password', variable: 'DATABASE_PASSWORD')]) {
                     sh '''
                         echo "=== Extended MySQL Readiness Check ==="
                         
@@ -247,11 +247,11 @@ EOF
                             fi
                             
                             # Test MySQL connection
-                            if docker exec test-mysql mysqladmin ping -h localhost -u root -p${DATABASE_PASSWORD} --silent; then
+                            if docker exec test-mysql mysqladmin ping -h localhost -u root -p"$DATABASE_PASSWORD" --silent; then
                                 echo "MySQL ping successful!"
                                 
                                 # Test database query
-                                if docker exec test-mysql mysql -u root -p${DATABASE_PASSWORD} -e "USE test_data; SELECT COUNT(*) FROM fixed_deposits;" > /dev/null 2>&1; then
+                                if docker exec test-mysql mysql -u root -p"$DATABASE_PASSWORD" -e "USE test_data; SELECT COUNT(*) FROM fixed_deposits;" > /dev/null 2>&1; then
                                     echo "Database query test successful!"
                                     break
                                 else
@@ -276,7 +276,7 @@ EOF
                         done
                         
                         echo "=== Final MySQL Verification ==="
-                        docker exec test-mysql mysql -u root -p${DATABASE_PASSWORD} -e "
+                        docker exec test-mysql mysql -u root -p"$DATABASE_PASSWORD" -e "
                             USE test_data; 
                             SELECT 'Database connection successful' as status;
                             SELECT COUNT(*) as record_count FROM fixed_deposits;
