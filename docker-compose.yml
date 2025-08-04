@@ -1,0 +1,90 @@
+version: "3.8"
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: mysql_db
+    ports:
+      - "3306:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD_FILE: /run/secrets/mysql_root_password
+      MYSQL_DATABASE: test_data
+      MYSQL_USER: appuser
+      MYSQL_PASSWORD_FILE: /run/secrets/mysql_user_password
+      MYSQL_INNODB_BUFFER_POOL_SIZE: 128M
+      MYSQL_INNODB_LOG_FILE_SIZE: 32M
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+      - ./mysql-config:/etc/mysql/conf.d
+    secrets:
+      - mysql_root_password
+      - mysql_user_password
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p$$(cat /run/secrets/mysql_root_password)"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    restart: unless-stopped
+    networks:
+      - test-network
+
+  app:
+    image: ${DOCKER_USER:-nkereuwem}/${DOCKERHUB_REPO:-devopswithnkereuwem}:${BUILD_NUMBER:-latest}
+    container_name: selenium_app
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      DATABASE_HOST: mysql_db
+      DATABASE_USER: appuser
+      DATABASE_PASSWORD_FILE: /run/secrets/mysql_user_password
+      DATABASE_NAME: test_data
+      DATABASE_PORT: 3306
+      # Test environment variables
+      ENVIRONMENT: testing
+      DEBUG: "true"
+      LOG_LEVEL: DEBUG
+      # Chrome configuration
+      DISPLAY: ":99"
+      CHROME_NO_SANDBOX: "1"
+      CHROME_DISABLE_GPU: "1"
+      CHROME_HEADLESS: "1"
+    secrets:
+      - mysql_user_password
+    volumes:
+      - ./reports:/app/reports
+      - ./allure-results:/app/allure-results
+      - ./allure-report:/app/allure-report
+      - ./logs:/app/logs
+      # Add shared memory for Chrome
+      - /dev/shm:/dev/shm
+    # Increase shared memory for Chrome stability
+    shm_size: 2g
+    restart: unless-stopped
+    networks:
+      - test-network
+    # Resource limits
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: '1.0'
+        reservations:
+          memory: 512M
+          cpus: '0.5'
+
+volumes:
+  mysql_data:
+    driver: local
+
+secrets:
+  mysql_root_password:
+    external: true
+  mysql_user_password:
+    external: true
+
+networks:
+  test-network:
+    driver: bridge

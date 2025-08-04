@@ -1,0 +1,148 @@
+# .dockerignore - Exclude files and directories from Docker build context
+
+# Git files
+.git
+.gitignore
+.gitattributes
+.gitmodules
+
+# Docker files
+Dockerfile*
+docker-compose*.yml
+.dockerignore
+
+# Documentation
+README.md
+CHANGELOG.md
+LICENSE
+*.md
+docs/
+
+# CI/CD files
+.github/
+.gitlab-ci.yml
+.travis.yml
+.circleci/
+Jenkinsfile
+azure-pipelines.yml
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Environment files
+.env*
+!.env.example
+.envrc
+
+# Logs
+*.log
+logs/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Runtime directories
+tmp/
+temp/
+.tmp/
+
+# Dependency directories
+node_modules/
+vendor/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Test files and coverage
+test/
+tests/
+__tests__/
+*.test.js
+*.spec.js
+coverage/
+.nyc_output/
+.coverage
+htmlcov/
+.pytest_cache/
+.tox/
+
+# Build artifacts
+build/
+dist/
+out/
+target/
+*.egg-info/
+.gradle/
+
+# Package manager files
+package-lock.json
+yarn.lock
+Pipfile.lock
+poetry.lock
+composer.lock
+
+# Cache directories
+.cache/
+.parcel-cache/
+.next/
+.nuxt/
+.vuepress/dist
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+
+# Secrets and certificates
+secrets/
+*.key
+*.pem
+*.crt
+*.p12
+*.pfx
+
+# Backup files
+*.bak
+*.backup
+*.old
+*.orig
+
+# Archives
+*.tar
+*.tar.gz
+*.zip
+*.rar
+*.7z
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Temporary files
+*.tmp
+*.temp
+*.swp
+*.swo
+
+# Application specific (uncomment/modify as needed)
+# uploads/
+# storage/
+# public/uploads/
+# var/
+# app/cache/
+# app/logs/
