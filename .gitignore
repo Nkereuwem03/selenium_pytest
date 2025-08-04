@@ -87,4 +87,6 @@ ENV/
 .DS_Store
 Thumbs.db
 
-a
+allure-results/
+reports/
+allure-report/
