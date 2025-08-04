@@ -62,8 +62,6 @@ pipeline {
                 withCredentials([string(credentialsId: 'mysql-root-password', variable: 'ROOT_PASSWORD'), 
                     string(credentialsId: 'mysql-user-password', variable: 'USER_PASSWORD')]) {
                     script {
-                        // Set environment variables for Docker secrets
-                        env.DATABASE_PASSWORD = DATABASE_PASSWORD ?: 'defaultpassword'
                         sh '''
                             mkdir -p ${REPORTS_DIR} ${ALLURE_RESULTS} ${LOGS_DIR}
                             chmod 755 ${REPORTS_DIR} ${ALLURE_RESULTS} ${LOGS_DIR}
