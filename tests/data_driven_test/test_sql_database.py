@@ -25,11 +25,11 @@ from openpyxl.styles import PatternFill
 dotenv.load_dotenv()
 
 DB_CONFIG = {
-    "host": os.getenv("DATABASE_HOST", "127.0.0.1"),  # Make it configurable
-    "port": int(os.getenv("DATABASE_PORT", "3306")),
-    "user": "root",
+    "host": os.getenv("DATABASE_HOST"),
+    "port": int(os.getenv("DATABASE_PORT")),
+    "user": os.getenv("DATABASE_USER"),
     "password": os.getenv("DATABASE_PASSWORD"),
-    "database": "test_data",
+    "database": os.getenv("DATABASE_NAME"),
 }
 
 for key, value in DB_CONFIG.items():
